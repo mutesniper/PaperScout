@@ -1,6 +1,7 @@
 import asyncio
 import re
 import time
+from datetime import date
 from urllib.parse import urlparse
 import httpx
 from defusedxml import ElementTree
@@ -16,6 +17,12 @@ def doi_key(value):
 
 def arxiv_key(value):
     return re.sub(r'v\d+$', '', value.split('/abs/')[-1]) if value else None
+
+def parse_date(value):
+    try:
+        return date.fromisoformat(value[:10]) if value else None
+    except (ValueError, TypeError):
+        return None
 
 def parse_arxiv(content):
     try:
@@ -37,6 +44,7 @@ def parse_arxiv(content):
         papers.append(Paper(id='arxiv:' + aid, title=title,
             authors=[a.findtext('a:name', '', ns) for a in entry.findall('a:author', ns)],
             year=int(published[:4]) if published[:4].isdigit() else None,
+            publication_date=parse_date(published),
             abstract=' '.join(entry.findtext('a:summary', '', ns).split()),
             doi=doi_key(entry.findtext('x:doi', None, ns)), arxiv_id=aid,
             sources=['arxiv'], url=safe_url(identifier) or 'https://arxiv.org',
@@ -57,7 +65,10 @@ def parse_semantic(payload):
         access = ('open_preprint' if preprint else 'open_fulltext') if pdf else ('abstract_only' if abstract else 'unknown')
         papers.append(Paper(id='s2:' + item['paperId'], title=item['title'],
             authors=[a['name'] for a in item.get('authors', []) if a.get('name')],
-            year=item.get('year'), abstract=abstract, doi=doi_key(ids.get('DOI')), arxiv_id=aid,
+            year=item.get('year'), publication_date=parse_date(item.get('publicationDate')),
+            citation_count=item.get('citationCount'),
+            citation_source='semantic_scholar' if item.get('citationCount') is not None else None,
+            abstract=abstract, doi=doi_key(ids.get('DOI')), arxiv_id=aid,
             sources=['semantic_scholar'], url=safe_url(item.get('url')) or 'https://www.semanticscholar.org/paper/' + item['paperId'],
             fulltext_url=pdf, access=access,
             evidence='Semantic Scholar 元数据提供公开全文链接；尚未验证下载。' if pdf else '来源未提供公开全文链接，无法据此判断是否付费。'))
@@ -84,6 +95,13 @@ def deduplicate(papers):
         found.sources = list(dict.fromkeys(found.sources + paper.sources))
         found.doi = found.doi or paper.doi
         found.arxiv_id = found.arxiv_id or paper.arxiv_id
+        found.year = found.year or paper.year
+        # Keep the first source's date (arXiv is first submission, not revision).
+        found.publication_date = found.publication_date or paper.publication_date
+        if found.citation_count is None and paper.citation_count is not None:
+            found.citation_count, found.citation_source = paper.citation_count, paper.citation_source
+        for source, rank in paper.source_ranks.items():
+            found.source_ranks[source] = min(found.source_ranks.get(source, rank), rank)
         if len(paper.abstract) > len(found.abstract):
             found.abstract = paper.abstract
         if paper.fulltext_url and not found.fulltext_url:
@@ -98,6 +116,9 @@ class Sources:
         self.last = {s: 0.0 for s in self.locks}
 
     async def fetch(self, source, query, plan: Plan, limit):
+        # Candidate policy: request relevance where supported; otherwise use the
+        # provider's default order. Never replace it with the user's local sort.
+        # A default-order list can participate in RRF, but is not a semantic score.
         if source == 'arxiv':
             terms = re.findall(r'[\w-]+', query, re.UNICODE)
             if not terms:
@@ -109,8 +130,10 @@ class Sources:
             params = dict(search_query=expression, max_results=limit, sortBy='relevance')
             headers = {}
         else:
+            # /paper/search is the relevance-search endpoint; no sort parameter
+            # is needed. Do not switch to the bulk endpoint's default ID order.
             url = 'https://api.semanticscholar.org/graph/v1/paper/search'
-            params = dict(query=query, limit=limit, fields='title,authors,year,abstract,url,externalIds,openAccessPdf')
+            params = dict(query=query, limit=limit, fields='title,authors,year,publicationDate,citationCount,abstract,url,externalIds,openAccessPdf')
             if plan.year_from or plan.year_to:
                 params['year'] = f'{plan.year_from or ""}-{plan.year_to or ""}'
             headers = {'x-api-key': self.semantic_key} if self.semantic_key else {}

@@ -12,14 +12,17 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
-from .models import CloudModel
+from .models import CloudModel, ANALYSIS_TOTAL_TIMEOUT
+from .model_output import ModelOutputError
 from .providers import Sources, deduplicate
-from .schemas import Idea, Paper, SearchRequest, SearchResult, SourceResult
+from .schemas import Idea, AnalysisRequest, Paper, SearchRequest, SearchResult, SourceResult
 from .storage import Store
+from .ranking import source_candidates, rank_candidates, ranking_details
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / '.env')
 logger = logging.getLogger('paperscout')
+CANDIDATE_LIMIT = 100
 
 def create_app(db_path=None):
     @asynccontextmanager
@@ -50,33 +53,72 @@ def create_app(db_path=None):
         except (httpx.HTTPError, TimeoutError):
             raise HTTPException(502, '云端模型请求失败，请检查配置或使用手动检索。') from None
 
+    @app.post('/api/analyze')
+    async def analyze(idea: AnalysisRequest):
+        try:
+            async with asyncio.timeout(ANALYSIS_TOTAL_TIMEOUT):
+                result = await app.state.model.analyze(idea.text, idea.clarification)
+            return {'analysis': result, 'model': app.state.model.name}
+        except RuntimeError:
+            raise HTTPException(503, '尚未配置云端模型，请先使用手动关键词检索。') from None
+        except ModelOutputError as exc:
+            reasons = {'truncated': '模型回复被长度限制截断，请减少目标范围或更换模型。',
+                       'empty': '模型未返回正文，请检查模型是否支持当前接口。',
+                       'refused': '模型未能处理该目标，请调整描述。',
+                       'envelope': '模型服务响应结构不兼容，请检查服务接口配置。',
+                       'json': '模型未返回有效 JSON，自动重试后仍失败，请重试或更换模型。',
+                       'schema': '模型返回字段不符合要求，自动重试后仍失败；后台日志已记录字段位置。'}
+            raise HTTPException(502, reasons[exc.code]) from None
+        except (ValidationError, ValueError, KeyError, TypeError, IndexError):
+            raise HTTPException(502, '模型返回的目标分析不符合格式，请重试或补充目标描述。') from None
+        except (httpx.TimeoutException, TimeoutError) as exc:
+            logger.warning('analysis_request code=timeout error_type=%s', type(exc).__name__)
+            raise HTTPException(504, '模型生成超时。请稍后重试，或使用响应更快的模型；这不一定是密钥配置错误。') from None
+        except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code
+            logger.warning('analysis_request code=upstream_http status=%s', status)
+            reason = ('模型服务认证失败，请检查密钥和模型访问权限。' if status in (401, 403) else
+                      '模型服务限流，请稍后重试。' if status == 429 else
+                      '模型服务拒绝了请求参数，请核对模型名称及输出 Token 上限。' if status in (400, 422) else
+                      '模型服务暂时不可用，请稍后重试。')
+            raise HTTPException(502, reason) from None
+        except httpx.HTTPError as exc:
+            logger.warning('analysis_request code=transport error_type=%s', type(exc).__name__)
+            raise HTTPException(502, '无法连接模型服务，请检查网络和服务地址。') from None
+
     async def collect(body):
+        # Treat all lines as one combined search, not independent alternatives.
+        query = ' '.join(body.plan.queries)
         async def one(source):
-            papers, failures, hits = [], [], 0
-            for query in body.plan.queries:
-                key = hashlib.sha256(json.dumps([source, query, body.plan.model_dump(), body.limit], sort_keys=True).encode()).hexdigest()
-                cached = app.state.store.cached(key)
-                try:
-                    if cached is not None:
-                        batch = [Paper.model_validate(p) for p in cached]
-                        hits += 1
-                    else:
-                        async with asyncio.timeout(28):
-                            batch = await app.state.sources.fetch(source, query, body.plan, body.limit)
-                        app.state.store.cache(key, [p.model_dump() for p in batch])
-                    papers.extend(p for p in batch if (not body.plan.year_from or p.year is not None and p.year >= body.plan.year_from)
-                                  and (not body.plan.year_to or p.year is not None and p.year <= body.plan.year_to))
-                except (httpx.HTTPError, TimeoutError, ValueError, KeyError, TypeError) as exc:
-                    code = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
-                    reason = '来源限流，请稍后再试或配置来源 API 密钥' if code == 429 else '来源请求超时' if isinstance(exc, (TimeoutError, httpx.TimeoutException)) else '来源暂不可用或响应格式异常'
-                    failures.append(f'“{query}”：{reason}')
-                    logger.warning('source=%s error_type=%s status=%s', source, type(exc).__name__, code)
-            papers = deduplicate(papers)
-            status = 'error' if len(failures) == len(body.plan.queries) else 'partial' if failures else 'ok'
-            return papers, SourceResult(source=source, status=status, count=len(papers), message='；'.join(failures), cached=hits == len(body.plan.queries))
+            key = hashlib.sha256(json.dumps(['v3-combined', source, query, body.plan.year_from,
+                body.plan.year_to, CANDIDATE_LIMIT], sort_keys=True).encode()).hexdigest()
+            cached = app.state.store.cached(key)
+            try:
+                if cached is not None:
+                    batch = [Paper.model_validate(p) for p in cached]
+                else:
+                    async with asyncio.timeout(28):
+                        batch = await app.state.sources.fetch(source, query, body.plan, CANDIDATE_LIMIT)
+                    # Enforce the cap even if a provider ignores its limit parameter.
+                    batch = batch[:CANDIDATE_LIMIT]
+                    app.state.store.cache(key, [p.model_dump(mode='json') for p in batch])
+                eligible = [p for p in batch[:CANDIDATE_LIMIT]
+                    if (not body.plan.year_from or p.year is not None and p.year >= body.plan.year_from)
+                    and (not body.plan.year_to or p.year is not None and p.year <= body.plan.year_to)]
+                papers = source_candidates(eligible, source)
+                return papers, SourceResult(source=source, status='ok', count=len(papers), cached=cached is not None)
+            except (httpx.HTTPError, TimeoutError, ValueError, KeyError, TypeError) as exc:
+                code = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
+                reason = '来源限流，请稍后再试或配置来源 API 密钥' if code == 429 else '来源请求超时' if isinstance(exc, (TimeoutError, httpx.TimeoutException)) else '来源暂不可用或响应格式异常'
+                logger.warning('source=%s error_type=%s status=%s', source, type(exc).__name__, code)
+                return [], SourceResult(source=source, status='error', count=0, message=reason)
         groups = await asyncio.gather(*(one(s) for s in dict.fromkeys(body.sources)))
+        candidates = deduplicate([p for group, _ in groups for p in group])
+        ranked = rank_candidates(candidates, body.sort)
+        note, warnings = ranking_details(candidates, body.sort)
         return SearchResult(id=str(uuid4()), created_at=datetime.now(timezone.utc).isoformat(), request=body,
-            papers=deduplicate([p for group, _ in groups for p in group]), sources=[status for _, status in groups])
+            papers=ranked[:body.limit], sources=[status for _, status in groups],
+            candidate_count=len(candidates), ranking_note=note, warnings=warnings)
 
     @app.post('/api/search', response_model=SearchResult)
     async def search(body: SearchRequest, request: Request):
