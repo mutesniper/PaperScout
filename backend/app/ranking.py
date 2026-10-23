@@ -26,7 +26,7 @@ def rank_candidates(papers, mode):
 
 def ranking_details(papers, mode):
     notes = {
-        'relevance': '单来源保留相关性顺序；多来源使用 RRF（k=60）融合。所有关键词合并查询，每个来源最多获取 100 篇。',
+        'relevance': '每行独立查询，同来源各组结果交替合并去重，最多保留 100 篇；多来源使用 RRF（k=60）融合。',
         'newest': '按本次候选论文的发表日期从新到旧排序，不代表全库最新。arXiv 使用首次提交日期。',
         'oldest': '按本次候选论文的发表日期从旧到新排序，不代表全库最早。arXiv 使用首次提交日期。',
         'citations': '按本次候选论文的 Semantic Scholar 引用次数排序，不代表全库引用最高。',

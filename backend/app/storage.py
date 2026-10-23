@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from .schemas import SearchResult
+from .reading_schemas import Reading, Summary, DocumentSummary
 
 class Store:
     def __init__(self, path: Path):
@@ -12,6 +13,9 @@ class Store:
         with self.connect() as db:
             db.execute('CREATE TABLE IF NOT EXISTS searches (id TEXT PRIMARY KEY, created_at TEXT, payload TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, expires TEXT, payload TEXT)')
+            db.execute('CREATE TABLE IF NOT EXISTS readings (id TEXT PRIMARY KEY, created_at TEXT, payload TEXT)')
+            db.execute('CREATE TABLE IF NOT EXISTS document_summaries (reading_id TEXT PRIMARY KEY, payload TEXT)')
+            db.execute('CREATE TABLE IF NOT EXISTS summaries (reading_id TEXT, section_id TEXT, payload TEXT, PRIMARY KEY (reading_id, section_id))')
 
     @contextmanager
     def connect(self):
@@ -45,3 +49,34 @@ class Store:
         expires = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
         with self.connect() as db:
             db.execute('INSERT OR REPLACE INTO cache VALUES (?, ?, ?)', (key, expires, json.dumps(payload, ensure_ascii=False)))
+
+    def save_reading(self, doc: Reading):
+        with self.connect() as db:
+            db.execute('INSERT INTO readings VALUES (?, ?, ?)', (doc.id, doc.created_at, doc.model_dump_json()))
+
+    def reading(self, reading_id):
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM readings WHERE id=?', (reading_id,)).fetchone()
+            summaries = db.execute('SELECT payload FROM summaries WHERE reading_id=?', (reading_id,)).fetchall()
+            full = db.execute('SELECT payload FROM document_summaries WHERE reading_id=?', (reading_id,)).fetchone()
+        if row is None:
+            return None
+        doc = Reading.model_validate_json(row[0])
+        doc.summaries = [Summary.model_validate_json(value) for (value,) in summaries]
+        doc.document_summary = DocumentSummary.model_validate_json(full[0]) if full else None
+        return doc
+
+    def save_document_summary(self, reading_id, summary: DocumentSummary):
+        with self.connect() as db:
+            db.execute('INSERT OR REPLACE INTO document_summaries VALUES (?, ?)', (reading_id, summary.model_dump_json()))
+
+    def reading_history(self):
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM readings ORDER BY created_at DESC LIMIT 50').fetchall()
+        return [{k: data[k] for k in ('id', 'title', 'kind', 'created_at', 'page_count')}
+                for (value,) in rows for data in [json.loads(value)]]
+
+    def save_summary(self, reading_id, summary: Summary):
+        with self.connect() as db:
+            db.execute('INSERT OR REPLACE INTO summaries VALUES (?, ?, ?)',
+                       (reading_id, summary.section_id, summary.model_dump_json()))

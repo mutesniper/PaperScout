@@ -15,6 +15,7 @@ test.beforeEach(async ({ page }) => {
   })
   await page.route('https://fonts.googleapis.com/**', route => route.abort())
   await page.route('**/api/health', route => route.fulfill({ json: { model_configured: false, model: null } }))
+  await page.route('**/api/readings', route => route.fulfill({ json: [] }))
   await page.route('**/api/history', route => route.fulfill({ json: [] }))
 })
 
@@ -31,7 +32,7 @@ test('manual search preserves successful source and labels access honestly', asy
   })
   await page.goto('/')
   await page.screenshot({ path: 'test-results/desktop.png', fullPage: true })
-  await expect(page.getByRole('button', { name: '分析目标' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '生成检索计划' })).toBeDisabled()
   await page.getByLabel('检索词', { exact: false }).fill('tool calling')
   await page.getByRole('button', { name: '开始探索' }).click()
   await expect(page.getByRole('heading', { name: 'Tool Calling Test Fixture' })).toBeVisible()
@@ -86,4 +87,42 @@ test('mobile viewport fits and a pending request can be cancelled', async ({ pag
   await page.getByRole('button', { name: '取消请求' }).click()
   await expect(page.getByText('已取消本次请求。')).toBeVisible()
   await expect(page.getByRole('button', { name: '开始探索' })).toBeEnabled()
+})
+
+
+test('citation generation, format switch and clipboard fallback', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new Error('denied') } } })
+  })
+  await page.route('**/api/search', route => route.fulfill({ json: {
+    id: 'citation-test', created_at: '2026-10-24', request: route.request().postDataJSON(), sources: [], papers: [{
+      id: 'arxiv:2505.08588', title: 'Tools & Models: A Test', authors: ['Alice Smith', 'Bob Chen', 'Carol Jones', 'Dan Lee'], year: 2025,
+      arxiv_id: '2505.08588', sources: ['arxiv'], url: 'https://arxiv.org/abs/2505.08588', doi: '10/published-version',
+      abstract: '', access: 'open_preprint', evidence: 'test', fulltext_url: null,
+    }],
+  } }))
+  await page.goto('/')
+  await page.getByLabel('检索词', { exact: false }).fill('tools')
+  await page.getByRole('button', { name: '开始探索' }).click()
+  await page.getByRole('button', { name: '生成引用', exact: true }).click()
+  const entry = page.getByLabel('参考文献条目')
+  expect(await entry.inputValue()).toContain('Alice Smith, Bob Chen, Carol Jones, et al.')
+  expect(await entry.inputValue()).toContain('https://arxiv.org/abs/2505.08588')
+  expect(await entry.inputValue()).not.toContain('10/published-version')
+  await page.getByLabel('引用格式').selectOption('bibtex')
+  expect(await entry.inputValue()).toContain('@misc{')
+  expect(await entry.inputValue()).toContain('archivePrefix = {arXiv}')
+  expect(await entry.inputValue()).toContain('Dan Lee')
+  expect(await entry.inputValue()).toContain('Tools \\& Models')
+  await page.getByRole('button', { name: '复制引用', exact: true }).click()
+  await expect(page.getByText(/浏览器未允许自动复制/)).toBeVisible()
+  expect(await entry.evaluate((el: HTMLTextAreaElement) => el.selectionEnd - el.selectionStart)).toBe((await entry.inputValue()).length)
+  await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (text: string) => { (window as any).copiedCitation = text } } }) })
+  await entry.fill('Edited citation')
+  await page.getByRole('button', { name: '复制引用', exact: true }).click()
+  await expect(page.getByText('已复制', { exact: true })).toBeVisible()
+  expect(await page.evaluate(() => (window as any).copiedCitation)).toBe('Edited citation')
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
+  await page.locator('.citation-widget').screenshot({ path: 'test-results/citation-mobile.png' })
 })

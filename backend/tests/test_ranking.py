@@ -71,19 +71,39 @@ def test_old_history_and_invalid_inputs():
         with pytest.raises(ValueError):
             SearchRequest.model_validate({'plan': {'queries': ['x']}, **extra})
 
-def test_combined_query_caps_each_source_even_if_provider_overreturns(tmp_path):
+def test_independent_queries_cap_each_source_even_if_provider_overreturns(tmp_path):
     with TestClient(create_app(tmp_path / 'combined.db')) as client:
         async def fetch(source, query, plan, limit):
-            assert query == 'transformer attention'
+            assert query in ('transformer', 'attention')
             assert limit == 100
-            return [paper(f'{source}-{i}') for i in range(120)]
+            return [paper(f'{source}-{query}-{i}') for i in range(120)]
         client.app.state.sources.fetch = AsyncMock(side_effect=fetch)
         body = {'plan': {'queries': ['transformer', 'attention']}, 'limit': 100}
         result = client.post('/api/search', json=body).json()
-        assert client.app.state.sources.fetch.await_count == 2
+        assert client.app.state.sources.fetch.await_count == 4
         assert [s['count'] for s in result['sources']] == [100, 100]
         assert result['candidate_count'] == 200 and len(result['papers']) == 100
-        assert all(int(p['id'].rsplit('-', 1)[1]) < 100 for p in result['papers'])
+        assert all(int(p['id'].rsplit('-', 1)[1]) < 50 for p in result['papers'])
         cached = client.post('/api/search', json=body).json()
         assert all(s['cached'] for s in cached['sources'])
-        assert client.app.state.sources.fetch.await_count == 2
+        assert client.app.state.sources.fetch.await_count == 4
+
+
+def test_query_failure_keeps_success_and_retries_only_failed_query(tmp_path):
+    import httpx
+    with TestClient(create_app(tmp_path / 'partial.db')) as client:
+        async def fetch(source, query, plan, limit):
+            if query == 'broken':
+                raise httpx.ConnectError('offline')
+            return [paper('shared', doi='10/shared'), paper(query)]
+        mock = AsyncMock(side_effect=fetch)
+        client.app.state.sources.fetch = mock
+        body = {'plan': {'queries': ['first', 'broken', 'last']}, 'sources': ['arxiv']}
+        result = client.post('/api/search', json=body).json()
+        assert [p['id'] for p in result['papers']] == ['shared', 'first', 'last']
+        assert result['sources'][0]['status'] == 'partial'
+        assert '1/3' in result['sources'][0]['message']
+        again = client.post('/api/search', json=body).json()
+        assert len(again['papers']) == 3
+        assert mock.await_count == 4
+        assert mock.call_args.args[1] == 'broken'
