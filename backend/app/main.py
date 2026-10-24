@@ -14,13 +14,14 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 from .models import CloudModel
-from .providers import Sources, deduplicate
+from .providers import Sources, deduplicate, with_preprint_link
 from .schemas import Idea, Paper, SearchRequest, SearchResult, SourceResult
 from .storage import Store
 from .ranking import source_candidates, rank_candidates, ranking_details
 from .reading import router as reading_router
 from .qa import router as qa_router
 from .comparison import router as comparison_router
+from .agent import router as agent_router
 from .retrieval import CloudEmbedding
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,16 +35,25 @@ def create_app(db_path=None):
         app.state.store = Store(Path(db_path) if db_path else ROOT / 'backend/data/paperscout.db')
         app.state.reading_slots = asyncio.Semaphore(2)
         app.state.embedding_lock = asyncio.Lock()
+        app.state.agent_tasks = {}
+        app.state.store.interrupt_agent_runs()
         async with httpx.AsyncClient(timeout=12, headers={'User-Agent': 'PaperScout/0.1 (personal research assistant)'}) as client:
             app.state.sources = Sources(client, os.getenv('SEMANTIC_SCHOLAR_API_KEY', ''))
             app.state.model = CloudModel(client, os.getenv('LLM_BASE_URL', ''), os.getenv('LLM_API_KEY', ''), os.getenv('LLM_MODEL', ''))
             app.state.embedding = CloudEmbedding(client, os.getenv('EMBEDDING_BASE_URL', ''), os.getenv('EMBEDDING_API_KEY', ''), os.getenv('EMBEDDING_MODEL', ''))
-            yield
+            try:
+                yield
+            finally:
+                tasks = list(app.state.agent_tasks.values())
+                for task in tasks:
+                    task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
 
     app = FastAPI(title='PaperScout', lifespan=lifespan)
     app.include_router(reading_router)
     app.include_router(qa_router)
     app.include_router(comparison_router)
+    app.include_router(agent_router)
     app.add_middleware(CORSMiddleware, allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173'], allow_methods=['GET', 'POST'], allow_headers=['Content-Type'])
 
     @app.get('/api/health')
@@ -78,6 +88,7 @@ def create_app(db_path=None):
                     # Enforce the cap even if a provider ignores its limit parameter.
                     batch = batch[:CANDIDATE_LIMIT]
                     app.state.store.cache(key, [p.model_dump(mode='json') for p in batch])
+                batch = [with_preprint_link(p) for p in batch]
                 eligible = [p for p in batch[:CANDIDATE_LIMIT]
                     if (not body.plan.year_from or p.year is not None and p.year >= body.plan.year_from)
                     and (not body.plan.year_to or p.year is not None and p.year <= body.plan.year_to)]
@@ -112,6 +123,8 @@ def create_app(db_path=None):
             papers=ranked[:body.limit], sources=[status for _, status in groups],
             candidate_count=len(candidates), ranking_note=note, warnings=warnings)
 
+    app.state.collect_search = collect
+
     @app.post('/api/search', response_model=SearchResult)
     async def search(body: SearchRequest, request: Request):
         task = asyncio.create_task(collect(body))
@@ -140,6 +153,7 @@ def create_app(db_path=None):
         result = app.state.store.get(record_id)
         if result is None:
             raise HTTPException(404, '检索记录不存在')
+        result.papers = [with_preprint_link(p) for p in result.papers]
         return result
 
     return app

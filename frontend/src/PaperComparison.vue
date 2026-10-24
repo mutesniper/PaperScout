@@ -19,7 +19,7 @@ async function api(options: RequestInit = {}) {
   return data
 }
 onMounted(async () => {
-  try { history.value = await api({ signal: lifecycle.signal }); result.value = history.value[0] ?? null }
+  try { history.value = await api({ signal: lifecycle.signal }) }
   catch { if (!lifecycle.signal.aborted) error.value = '对比历史加载失败，请刷新重试。' }
 })
 onBeforeUnmount(() => { lifecycle.abort(); active?.abort() })
@@ -60,7 +60,7 @@ function cell(paper: string, dimension: string) {
     </form>
     <p v-if="!configured" class="help">请先配置云端模型，已有对比仍可查看。</p>
     <p v-if="error" role="alert" class="message error">{{ error }}</p><p v-if="notice" role="status">{{ notice }}</p>
-    <label v-if="history.length">对比历史<select :value="result?.id" @change="result = history.find(r => r.id === ($event.target as HTMLSelectElement).value) ?? null"><option v-for="item in history" :key="item.id" :value="item.id">{{ new Date(item.created_at).toLocaleString('zh-CN') }} · {{ item.papers.map(p => p.title).join(' / ') }}</option></select></label>
+    <label v-if="history.length">对比历史<select :value="result?.id ?? ''" @change="result = history.find(r => r.id === ($event.target as HTMLSelectElement).value) ?? null"><option value="">选择历史对比结果</option><option v-for="item in history" :key="item.id" :value="item.id">{{ new Date(item.created_at).toLocaleString('zh-CN') }} · {{ item.papers.map(p => p.title).join(' / ') }}</option></select></label>
     <div v-if="result" class="table-scroll" tabindex="0" role="region" aria-label="论文对比结果"><table>
       <caption>基于检索证据的论文对比</caption>
       <thead><tr><th scope="col">维度</th><th v-for="paper in result.papers" :key="paper.id" scope="col">{{ paper.title }}</th></tr></thead>

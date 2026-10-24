@@ -15,8 +15,13 @@ from fastapi.responses import FileResponse
 from pydantic import ValidationError
 from .reading_schemas import ImportPaper, Reading, SummaryContent, Section, Fragment, DocumentSummaryContent, DocumentSummary
 from .pdf_worker import MAX_BYTES
+from .providers import with_preprint_link
 
 router = APIRouter(prefix='/api/readings')
+
+
+class DownloadAddressError(ValueError):
+    """Safe diagnostic for resolver/policy failures, without credentials."""
 
 
 async def wait_operation(request, operation, timeout):
@@ -57,10 +62,15 @@ async def public_address(url):
     parts = urlsplit(url)
     if parts.scheme != 'https' or not parts.hostname or parts.username or parts.password or parts.port not in (None, 443):
         raise ValueError('仅允许 HTTPS 公开 PDF 地址。')
-    addresses = await asyncio.get_running_loop().getaddrinfo(parts.hostname, 443, type=socket.SOCK_STREAM)
+    try:
+        addresses = await asyncio.get_running_loop().getaddrinfo(parts.hostname, 443, type=socket.SOCK_STREAM)
+    except socket.gaierror:
+        raise DownloadAddressError('PDF 域名 DNS 解析失败，请检查本机网络或 DNS 配置。') from None
     ips = [row[4][0] for row in addresses]
+    if any(ipaddress.ip_address(ip) in ipaddress.ip_network('198.18.0.0/15') for ip in ips):
+        raise DownloadAddressError('PDF 域名被解析为 Fake-IP（198.18.0.0/15），当前公网下载检查无法使用该地址。请在代理/DNS 中让论文域名返回真实公网 IP，或手动上传 PDF。')
     if not ips or any(not ipaddress.ip_address(ip).is_global for ip in ips):
-        raise ValueError('全文地址不属于可访问的公网地址。')
+        raise DownloadAddressError('PDF 域名解析到非公网地址，下载已阻止。请检查 DNS 或手动上传 PDF。')
     return parts.hostname, ips[0]
 
 
@@ -145,6 +155,7 @@ async def import_paper(body: ImportPaper, request: Request):
     paper = next((p for p in record.papers if p.id == body.paper_id), None) if record else None
     if paper is None:
         raise HTTPException(404, '未找到论文，请重新检索后再试。')
+    paper = with_preprint_link(paper)
     if body.mode == 'abstract':
         if not paper.abstract.strip():
             raise HTTPException(422, '来源未提供摘要。')
@@ -163,7 +174,13 @@ async def import_paper(body: ImportPaper, request: Request):
             # No environment proxies or credentials are forwarded to paper hosts.
             async with httpx.AsyncClient(timeout=20, trust_env=False) as client:
                 data, url = await wait_operation(request, download_pdf(paper.fulltext_url, client), 50)
-    except (ValueError, httpx.HTTPError, TimeoutError, OSError):
+    except DownloadAddressError as exc:
+        raise HTTPException(502, str(exc) + ' 此结果不表示论文付费。') from None
+    except (httpx.TimeoutException, TimeoutError):
+        raise HTTPException(502, '公开 PDF 下载超时，请检查后端网络连接或手动上传。此结果不表示论文付费。') from None
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(502, f'PDF 网站返回 HTTP {exc.response.status_code}，可能限制自动访问；可打开原链接后手动上传。此结果不表示论文付费。') from None
+    except (ValueError, httpx.HTTPError, OSError):
         raise HTTPException(502, '公开 PDF 获取失败或文件不受支持；可打开原链接后手动上传。此结果不表示论文付费。') from None
     return await save_pdf(request, data, paper.title, 'public', url)
 

@@ -7,6 +7,7 @@ from collections import Counter
 from typing import Protocol
 import numpy as np
 import faiss
+from .agent_budget import reserve
 
 
 class EmbeddingProvider(Protocol):
@@ -36,6 +37,7 @@ class CloudEmbedding:
         return bool(self.base_url or self.api_key or self.name) and not self.configured
 
     async def embed(self, texts):
+        reserve('embeddings', sum(len(text) for text in texts))
         response = await self.client.post(self.base_url + '/embeddings', timeout=45,
             headers={'Authorization': 'Bearer ' + self.api_key},
             json={'model': self.name, 'input': texts, 'encoding_format': 'float'})

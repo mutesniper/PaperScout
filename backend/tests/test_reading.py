@@ -140,6 +140,23 @@ def test_download_blocks_non_public_targets(url):
         asyncio.run(public_address(url))
 
 
+def test_fake_ip_has_specific_diagnostic_and_no_request(tmp_path, monkeypatch):
+    from app.reading import DownloadAddressError
+    async def check():
+        loop = asyncio.get_running_loop()
+        async def resolve(*args, **kwargs):
+            return [(2, 1, 6, '', ('198.18.0.163', 443))]
+        monkeypatch.setattr(loop, 'getaddrinfo', resolve)
+        with pytest.raises(DownloadAddressError, match='Fake-IP'):
+            await public_address('https://arxiv.org/pdf/2510.03847')
+    asyncio.run(check())
+    monkeypatch.setattr('app.reading.download_pdf', AsyncMock(side_effect=DownloadAddressError('Fake-IP DNS 配置问题')))
+    with TestClient(create_app(tmp_path / 'db')) as client:
+        response = client.post('/api/readings/import', json={**saved_search(client), 'mode': 'pdf'})
+        assert response.status_code == 502
+        assert 'Fake-IP' in response.json()['detail'] and '不表示论文付费' in response.json()['detail']
+
+
 def test_download_pins_dns_checks_redirect_and_size(monkeypatch):
     seen = []
     async def address(url):

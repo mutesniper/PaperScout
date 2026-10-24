@@ -9,6 +9,41 @@ from app.main import create_app
 from app.models import CloudModel
 from app.providers import deduplicate, parse_arxiv, parse_semantic, Sources
 from app.schemas import Plan, Paper
+from app.providers import with_preprint_link
+
+
+def test_missing_semantic_pdf_recovered_from_arxiv_metadata():
+    result = parse_semantic({'data': [{'paperId': 'survey', 'title': 'Survey',
+        'externalIds': {'ArXiv': '2510.03847', 'DOI': '10.48550/arXiv.2510.03847'},
+        'openAccessPdf': None}]})[0]
+    assert result.fulltext_url == 'https://arxiv.org/pdf/2510.03847'
+    assert result.access == 'open_preprint' and '尚未验证下载' in result.evidence
+    assert with_preprint_link(paper(doi='10.48550/arxiv.2510.03847')).fulltext_url == result.fulltext_url
+    assert with_preprint_link(paper(arxiv_id='hep-th/9901001v2')).fulltext_url == 'https://arxiv.org/pdf/hep-th/9901001v2'
+    for invalid in ('../../private', '2510.03847?redirect=evil', 'https://evil.test/x', 'not-an-id'):
+        assert with_preprint_link(paper(arxiv_id=invalid)).fulltext_url is None
+    existing = paper(arxiv_id='2510.03847', fulltext_url='https://publisher.test/paper.pdf', access='open_fulltext')
+    assert with_preprint_link(existing) == existing
+
+
+def test_old_search_cache_and_history_gain_preprint_link(tmp_path):
+    import hashlib
+    with TestClient(create_app(tmp_path / 'db')) as client:
+        old = paper(arxiv_id='2510.03847', sources=['semantic_scholar'])
+        key = hashlib.sha256(json.dumps(['v4-independent', 'semantic_scholar', 'agent', None, None, 100], sort_keys=True).encode()).hexdigest()
+        client.app.state.store.cache(key, [old.model_dump(mode='json')])
+        client.app.state.sources.fetch = AsyncMock(side_effect=AssertionError('cache should be used'))
+        response = client.post('/api/search', json={'plan': {'queries': ['agent']}, 'sources': ['semantic_scholar']})
+        assert response.status_code == 200
+        result = response.json()
+        assert result['sources'][0]['cached'] is True
+        assert result['papers'][0]['fulltext_url'] == 'https://arxiv.org/pdf/2510.03847'
+        client.app.state.sources.fetch.assert_not_awaited()
+        record = client.app.state.store.get(result['id'])
+        record.papers = [old]
+        record.id = 'legacy'
+        client.app.state.store.save(record)
+        assert client.get('/api/history/legacy').json()['papers'][0]['access'] == 'open_preprint'
 
 def paper(**kwargs):
     fields = dict(id='one', title='A sufficiently long paper title for matching', authors=['A. Author'], year=2024,

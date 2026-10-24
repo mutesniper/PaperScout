@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import ReadingPanel from './ReadingPanel.vue'
 import CitationButton from './CitationButton.vue'
+import ResearchAgent from './ResearchAgent.vue'
 const reader = ref<InstanceType<typeof ReadingPanel> | null>(null)
 type Plan = { queries: string[]; year_from: number | null; year_to: number | null }
 type Sort = 'relevance' | 'newest' | 'oldest' | 'citations'
@@ -99,6 +100,7 @@ async function openRecord(id: string) {
         <div v-else-if="!visiblePapers.length" class="empty"><h3>{{ result.sources.every(s => s.status === 'error') ? '论文来源暂时不可用' : '没有符合当前条件的论文' }}</h3><p>可以调整关键词、放宽年份，或稍后重试。</p></div>
         <article v-for="(paper, index) in visiblePapers" :key="paper.id" class="paper"><div class="paper-index">{{ String(index + 1).padStart(2, '0') }}</div><div class="paper-body"><div class="paper-meta"><span>{{ paper.publication_date ?? paper.year ?? '日期未知' }}</span><span>{{ paper.sources.map(s => labels[s]).join(' · ') }}</span><span>引用 {{ paper.citation_count ?? '未知' }}{{ paper.citation_source === 'semantic_scholar' ? ' · Semantic Scholar' : '' }}</span><span :class="['access', { available: !!paper.fulltext_url }]">{{ labels[paper.access] }}</span></div><h3><a :href="paper.url" target="_blank" rel="noopener noreferrer">{{ paper.title }} ↗</a></h3><p class="authors">{{ paper.authors.slice(0, 6).join(', ') }}{{ paper.authors.length > 6 ? ' 等' : '' }}</p><details><summary>{{ paper.abstract ? '查看来源摘要' : '来源未提供摘要' }}</summary><p class="abstract">{{ paper.abstract || '暂无摘要。' }}</p></details><p class="evidence">{{ paper.evidence }}</p><div class="paper-links"><a :href="paper.url" target="_blank" rel="noopener noreferrer">查看原始来源 ↗</a><a v-if="paper.fulltext_url" :href="paper.fulltext_url" target="_blank" rel="noopener noreferrer">打开全文链接 ↗</a><button v-if="paper.abstract" class="secondary" @click="reader?.importPaper(result!.id, paper.id, 'abstract')">概括来源摘要</button><button v-if="paper.fulltext_url" class="secondary" @click="reader?.importPaper(result!.id, paper.id, 'pdf')">获取公开 PDF</button><small v-if="paper.doi">DOI: {{ paper.doi }}</small></div><CitationButton :key="result!.id + paper.id" :paper="paper" /></div></article>
       </section>
+      <ResearchAgent :configured="configured" />
       <ReadingPanel ref="reader" :configured="configured" />
       <footer>PaperScout <span>从想法到证据，一步一步。</span></footer>
     </main>

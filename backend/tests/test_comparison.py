@@ -6,6 +6,7 @@ from app.main import create_app
 from test_qa import setup, document
 from app.comparison import comparison_chunks
 from app.retrieval import chunks_for, lexical_scores
+from app.retrieval import CloudEmbedding
 from app.reading_schemas import Section, Fragment
 
 
@@ -33,6 +34,26 @@ def test_goal_uses_introduction_when_no_abstract_heading():
     doc.sections[0].title = '1 Introduction'
     selected = comparison_chunks(doc, 'goal', [])
     assert selected[0]['section_id'] == 's1'
+
+
+def test_goal_comparison_skips_fulltext_embedding(tmp_path):
+    with TestClient(create_app(tmp_path / 'db')) as client:
+        prepare(client)
+        # Use separate long PDFs with explicit abstract sections.
+        for identifier in ('survey1', 'survey2'):
+            doc = document(identifier)
+            doc.sections[0].title = 'Abstract'
+            doc.sections[1].fragments[0].text = 'Long survey material. ' * 10000
+            client.app.state.store.save_reading(doc)
+        embedding = CloudEmbedding(None, 'https://embedding.test', 'fake', 'embedding-model')
+        embedding.embed = AsyncMock(side_effect=AssertionError('goal evidence must not index full text'))
+        client.app.state.embedding = embedding
+        result = client.post('/api/comparisons', json={'reading_ids': ['survey1', 'survey2'], 'dimensions': ['goal']})
+        assert result.status_code == 200, result.text
+        assert result.json()['retrieval'] == 'structural'
+        assert len(result.json()['cells']) == 2
+        embedding.embed.assert_not_awaited()
+        client.app.state.model.compare_papers.assert_awaited_once()
 
 
 def prepare(client):

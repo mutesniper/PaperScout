@@ -88,13 +88,22 @@ async def compare(body: ComparisonRequest, request: Request):
 
     async def work():
         material, sources = [], {}
+        modes = set()
         for doc in docs:
             for dimension in body.dimensions:
                 label, query = DIMENSIONS[dimension]
-                chunks, mode = await retrieve(doc, label + ' ' + query, embedding,
-                    request.app.state.store, request.app.state.embedding_lock)
+                # Structural goal evidence was already preferred after retrieval.
+                # Select it first to avoid indexing entire surveys just to read an abstract.
+                chunks = comparison_chunks(doc, dimension, []) if dimension == 'goal' else []
+                if chunks:
+                    modes.add('structural')
+                else:
+                    ranked, mode = await retrieve(doc, label + ' ' + query, embedding,
+                        request.app.state.store, request.app.state.embedding_lock)
+                    chunks = comparison_chunks(doc, dimension, ranked)
+                    modes.add(mode)
                 excerpts = [{**chunk, 'id': doc.id + ':' + chunk['id'], 'reading_id': doc.id}
-                            for chunk in comparison_chunks(doc, dimension, chunks)]
+                            for chunk in chunks]
                 sources[(doc.id, dimension)] = {chunk['id']: chunk for chunk in excerpts}
                 material.append({'reading_id': doc.id, 'title': doc.title,
                     'dimension': dimension, 'label': label, 'excerpts': excerpts})
@@ -121,7 +130,7 @@ async def compare(body: ComparisonRequest, request: Request):
         answer = {'id': str(uuid4()), 'created_at': datetime.now(timezone.utc).isoformat(),
             'papers': [{'id': doc.id, 'title': doc.title} for doc in docs],
             'dimensions': body.dimensions, 'cells': cells,
-            'retrieval': 'semantic' if embedding.configured else 'keyword', 'model': model.name}
+            'retrieval': '+'.join(sorted(modes)), 'model': model.name}
         request.app.state.store.save_comparison(answer)
         return answer
 

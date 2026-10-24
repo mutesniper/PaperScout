@@ -16,6 +16,7 @@ class Store:
             db.execute('CREATE TABLE IF NOT EXISTS qa_vectors (key TEXT PRIMARY KEY, payload TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS questions (id TEXT PRIMARY KEY, reading_id TEXT, created_at TEXT, payload TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS comparisons (id TEXT PRIMARY KEY, created_at TEXT, payload TEXT)')
+            db.execute('CREATE TABLE IF NOT EXISTS agent_runs (id TEXT PRIMARY KEY, created_at TEXT, payload TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS readings (id TEXT PRIMARY KEY, created_at TEXT, payload TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS document_summaries (reading_id TEXT PRIMARY KEY, payload TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS summaries (reading_id TEXT, section_id TEXT, payload TEXT, PRIMARY KEY (reading_id, section_id))')
@@ -112,3 +113,27 @@ class Store:
         with self.connect() as db:
             rows = db.execute('SELECT payload FROM comparisons ORDER BY created_at DESC LIMIT 20').fetchall()
         return [json.loads(row[0]) for row in rows]
+
+    def save_agent_run(self, run):
+        with self.connect() as db:
+            db.execute('INSERT OR REPLACE INTO agent_runs VALUES (?, ?, ?)',
+                (run['id'], run['created_at'], json.dumps(run, ensure_ascii=False)))
+
+    def agent_run(self, identifier):
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM agent_runs WHERE id=?', (identifier,)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def agent_history(self):
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM agent_runs ORDER BY created_at DESC LIMIT 20').fetchall()
+        return [json.loads(row[0]) for row in rows]
+
+    def interrupt_agent_runs(self):
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM agent_runs').fetchall()
+            for (payload,) in rows:
+                run = json.loads(payload)
+                if run['status'] in ('queued', 'running'):
+                    run.update(status='interrupted', message='服务已重启，任务已中断；已有结果保留，可重新发起任务。')
+                    db.execute('UPDATE agent_runs SET payload=? WHERE id=?', (json.dumps(run, ensure_ascii=False), run['id']))

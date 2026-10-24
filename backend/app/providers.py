@@ -18,6 +18,23 @@ def doi_key(value):
 def arxiv_key(value):
     return re.sub(r'v\d+$', '', value.split('/abs/')[-1]) if value else None
 
+
+def with_preprint_link(paper):
+    """Recover missing PDF metadata from a validated arXiv identifier, not a title guess."""
+    if paper.fulltext_url:
+        return paper
+    identifier = paper.arxiv_id
+    if not identifier and paper.doi and paper.doi.lower().startswith('10.48550/arxiv.'):
+        identifier = paper.doi[len('10.48550/arxiv.'):]
+    if not identifier or not re.fullmatch(r'(?:\d{4}\.\d{4,5}|[a-zA-Z][a-zA-Z.-]*/\d{7})(?:v\d+)?', identifier):
+        return paper
+    return paper.model_copy(update={
+        'arxiv_id': arxiv_key(identifier),
+        'fulltext_url': 'https://arxiv.org/pdf/' + identifier,
+        'access': 'open_preprint',
+        'evidence': '根据来源中的 arXiv 标识补全预印本 PDF 链接；尚未验证下载。',
+    })
+
 def parse_date(value):
     try:
         return date.fromisoformat(value[:10]) if value else None
@@ -50,7 +67,7 @@ def parse_arxiv(content):
             sources=['arxiv'], url=safe_url(identifier) or 'https://arxiv.org',
             fulltext_url=pdf, access='open_preprint' if pdf else 'abstract_only',
             evidence='arXiv 元数据提供预印本 PDF 链接；尚未验证下载。' if pdf else '已获取 arXiv 摘要，未取得 PDF 链接。'))
-    return papers
+    return [with_preprint_link(paper) for paper in papers]
 
 def parse_semantic(payload):
     papers = []
@@ -72,7 +89,7 @@ def parse_semantic(payload):
             sources=['semantic_scholar'], url=safe_url(item.get('url')) or 'https://www.semanticscholar.org/paper/' + item['paperId'],
             fulltext_url=pdf, access=access,
             evidence='Semantic Scholar 元数据提供公开全文链接；尚未验证下载。' if pdf else '来源未提供公开全文链接，无法据此判断是否付费。'))
-    return papers
+    return [with_preprint_link(paper) for paper in papers]
 
 def deduplicate(papers):
     output = []
