@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from app.main import create_app
 from test_qa import setup, document
 from app.comparison import comparison_chunks
-from app.retrieval import chunks_for, lexical_scores
+from app.retrieval import chunks_for, lexical_scores, MAX_EVIDENCE_CHARS
 from app.retrieval import CloudEmbedding
 from app.reading_schemas import Section, Fragment
 
@@ -25,7 +25,7 @@ def test_goal_prefers_inline_abstract_over_author_research_interests():
     selected = comparison_chunks(doc, 'goal', ranked)
     assert len(selected) == 2
     assert 'Abstract' in selected[0]['text']
-    assert all(c['page'] == 1 and len(c['text']) <= 1000 for c in selected)
+    assert all(c['page'] == 1 and len(c['text']) <= MAX_EVIDENCE_CHARS for c in selected)
     assert not any(c['page'] == 12 for c in comparison_chunks(doc, 'method', ranked))
 
 
@@ -80,7 +80,7 @@ def test_comparison_citations_and_persistence(tmp_path):
         client.app.state.model.compare_papers.assert_awaited_once()
         material = client.app.state.model.compare_papers.call_args.args[0]
         assert all(len(item['excerpts']) <= 2 for item in material)
-        assert all(len(chunk['text']) <= 1000 for item in material for chunk in item['excerpts'])
+        assert all(len(chunk['text']) <= MAX_EVIDENCE_CHARS for item in material for chunk in item['excerpts'])
     with TestClient(create_app(path)) as client:
         assert client.get('/api/comparisons').json() == [result]
 

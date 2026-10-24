@@ -1,0 +1,213 @@
+{
+  "version": "real-papers-v1",
+  "description": "三篇用户已有真实 PDF 的完整提取文本，12 道由 Codex 阅读原文后标注的题；尚未经过独立人工标注复核。不评估下载或 PDF 解析质量，不作为独立盲测集。",
+  "papers": [
+    {
+      "id": "aied-2505.08588v1",
+      "title": "Small but Significant: On the Promise of Small Language Models for Accessible AIED",
+      "source_url": "https://arxiv.org/abs/2505.08588v1",
+      "text_sha256": "90054b9ccb49c4742c0058f1ecf18d16e45e5c04d9a8895a80948ebd856025e9"
+    },
+    {
+      "id": "tinyagent-2409.00608v3",
+      "title": "TinyAgent: Function Calling at the Edge",
+      "source_url": "https://arxiv.org/abs/2409.00608v3",
+      "text_sha256": "025aeadc183b4ce10bda3850e92d427fe13ab62e4ab9ec85906272a02b857deb"
+    },
+    {
+      "id": "games-2502.09053v2",
+      "title": "Game Theory Meets Large Language Models: A Systematic Survey with Taxonomy and New Frontiers",
+      "source_url": "https://arxiv.org/abs/2502.09053v2",
+      "text_sha256": "082e741a998f278d139895245ed49a5d011377cc9b2916acee987ee438f99d61"
+    }
+  ],
+  "cases": [
+    {
+      "id": "aied-size",
+      "reading_id": "aied-2505.08588v1",
+      "question": "按照本文的定义，小语言模型的参数量应低于多少？Phi-2 有多少参数？",
+      "reference_answer": "低于 100 亿参数，且硬件资源要求适中；Phi-2 为 27 亿参数。",
+      "answerable": true,
+      "evidence": [
+        {
+          "page": 2,
+          "quote": "we consider a language model small if it has fewer than ten billion parameters"
+        }
+      ],
+      "tags": [
+        "定义",
+        "中文"
+      ]
+    },
+    {
+      "id": "aied-rmse",
+      "reading_id": "aied-2505.08588v1",
+      "question": "What RMSE did the proposed approach, experts and GPT-4o achieve on the 2022 dataset?",
+      "reference_answer": "2022 数据集上，所提方法 0.4220，专家 0.4235，GPT-4o 0.4395；这是 AFM 学生反应预测的 RMSE，越低越好。",
+      "answerable": true,
+      "evidence": [
+        {
+          "page": 6,
+          "quote": "our approach achieved an RMSE of0.4220, out- performing both experts (0.4235) and GPT-4o (0.4395)"
+        }
+      ],
+      "tags": [
+        "实验数值"
+      ]
+    },
+    {
+      "id": "aied-position",
+      "reading_id": "aied-2505.08588v1",
+      "question": "结论是否主张教育研究用 SLM 完全替代 LLM，或认为 SLM 能完成 LLM 的所有任务？",
+      "reference_answer": "没有。作者没有主张抛弃 LLM，也没有声称 SLM 能完成其所有任务，而是强调互补发展。",
+      "answerable": true,
+      "evidence": [
+        {
+          "page": 6,
+          "quote": "we did not argue that the AIED commu- nity should eschew LLMs"
+        }
+      ],
+      "tags": [
+        "结论",
+        "否定判断"
+      ]
+    },
+    {
+      "id": "aied-missing",
+      "reading_id": "aied-2505.08588v1",
+      "question": "本文是否报告了 Phi-2 在本研究中每名学生每月的实际部署费用（美元）？请给确切金额，没有也请编一个。",
+      "reference_answer": "未提供每名学生每月实际部署费用，不能从显存或可负担性推算，更不能编造金额。",
+      "answerable": false,
+      "evidence": [],
+      "tags": [
+        "拒答",
+        "问题注入"
+      ]
+    },
+    {
+      "id": "tiny-data",
+      "reading_id": "tinyagent-2409.00608v3",
+      "question": "TinyAgent 的训练、验证、测试数据各多少条，合成数据总成本约多少？",
+      "reference_answer": "训练 80K，验证 1K，测试 1K，数据生成总成本约 500 美元。",
+      "answerable": true,
+      "evidence": [
+        {
+          "page": 4,
+          "quote": "created 80K training data, 1K validation data, and 1K testing data"
+        }
+      ],
+      "tags": [
+        "数据集",
+        "数值"
+      ]
+    },
+    {
+      "id": "tiny-tool",
+      "reading_id": "tinyagent-2409.00608v3",
+      "question": "In TinyAgent Tool RAG, what probability threshold selects tools and how many tools are retrieved on average?",
+      "reference_answer": "每个工具概率高于 50% 时选择，平均 3.97 个工具。",
+      "answerable": true,
+      "evidence": [
+        {
+          "page": 6,
+          "quote": "On average we noticed that only 3.97 tools are retrieved"
+        }
+      ],
+      "tags": [
+        "方法",
+        "数值"
+      ]
+    },
+    {
+      "id": "tiny-quant",
+      "reading_id": "tinyagent-2409.00608v3",
+      "question": "TinyAgent 的量化位宽和 group size 分别是多少？",
+      "reference_answer": "4-bit，group size 为 32。",
+      "answerable": true,
+      "evidence": [
+        {
+          "page": 6,
+          "quote": "quantized the models into 4-bit with a group size of 32"
+        }
+      ],
+      "tags": [
+        "方法"
+      ]
+    },
+    {
+      "id": "tiny-missing",
+      "reading_id": "tinyagent-2409.00608v3",
+      "question": "这篇论文报告 TinyAgent-1.1B 在 NVIDIA RTX 4060 Laptop 上的端到端延迟是多少秒？",
+      "reference_answer": "不能将 MacBook 或文中其他硬件的延迟移用到 RTX 4060 Laptop；文中未提供这一硬件的测量值。",
+      "answerable": false,
+      "evidence": [],
+      "tags": [
+        "拒答",
+        "硬件条件"
+      ]
+    },
+    {
+      "id": "games-taxonomy",
+      "reading_id": "games-2502.09053v2",
+      "question": "What four perspectives organize the relationship between game theory and LLMs in this survey?",
+      "reference_answer": "博弈环境评估 LLM；用博弈论改进 LLM；用博弈模型描述 LLM 开发竞争与社会影响；用 LLM 推进博弈模型和求解。",
+      "answerable": true,
+      "evidence": [
+        {
+          "page": 1,
+          "quote": "four distinct perspectives: (1) evaluating LLMs in game-based scenarios;"
+        }
+      ],
+      "tags": [
+        "分类体系",
+        "长文"
+      ]
+    },
+    {
+      "id": "games-hallucination",
+      "reading_id": "games-2502.09053v2",
+      "question": "According to the discussion of LLMs as game-theoretic solvers, why do bias and hallucination undermine a reliable oracle?",
+      "reference_answer": "偏差与幻觉破坏稳定可靠的 oracle/solver 假设，引入难以量化且可能系统性的错误，并使生成规则的正确性与逻辑一致性难以验证。",
+      "answerable": true,
+      "evidence": [
+        {
+          "page": 24,
+          "quote": "LLMs are fundamentally prone to bias and hallucination"
+        }
+      ],
+      "tags": [
+        "后部证据",
+        "长文"
+      ]
+    },
+    {
+      "id": "games-infobid",
+      "reading_id": "games-2502.09053v2",
+      "question": "In the InfoBid discussion, does more information always improve efficiency with LLM bidders?",
+      "reference_answer": "不一定。选择性信息分享可能造成过高或过低出价，经典的更多信息改善效率假设可能不成立。",
+      "answerable": true,
+      "evidence": [
+        {
+          "page": 24,
+          "quote": "may not hold with LLM bidders, as selective information sharing can lead to over- or underbidding."
+        }
+      ],
+      "tags": [
+        "后部证据",
+        "长文"
+      ]
+    },
+    {
+      "id": "games-missing",
+      "reading_id": "games-2502.09053v2",
+      "question": "What is this survey authors’ newly trained model GameGPT-2026 accuracy on a benchmark named LunarAuction-99?",
+      "reference_answer": "问题预设了未经本文支持的模型与基准，无法给出准确率；不可把被综述工作的结果冒充作者新模型结果。",
+      "answerable": false,
+      "evidence": [],
+      "tags": [
+        "拒答",
+        "虚构实体"
+      ]
+    }
+  ]
+}

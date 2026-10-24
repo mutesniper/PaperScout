@@ -1,5 +1,23 @@
 # 固定样本评测
 
+## 真实论文：直接运行
+
+已补充三篇本地已有 PDF 的 12 道标注题：Small but Significant（2505.08588v1，9 页）、TinyAgent（2409.00608v3，9 页）、Game Theory Meets Large Language Models（2502.09053v2，35 页）。全部提取文本参与检索，未只截取答案所在段落。题目及短参考证据见 `backend/evaluation/real_manifest.json`。
+
+在项目根目录执行：
+
+```powershell
+.\.venv\Scripts\python backend/evaluation/prepare_real.py
+.\.venv\Scripts\python backend/evaluation/run.py --dataset outputs/evaluation/real-papers.json
+.\.venv\Scripts\python backend/evaluation/run.py --dataset outputs/evaluation/real-papers.json --live --semantic
+```
+
+前两条不调用模型；第三条发送完整分块文本到 Embedding 服务、检索片段到回答模型，产生费用。报告位于 `outputs/evaluation/`。
+
+准备脚本只读本地论文库，以提取文本哈希匹配版本，不依赖上传时的随机 ID；文本版本不匹配时停止。完整文本和逐题输出只保存在被 Git 忽略的本地报告目录，不随仓库发布。其他电脑需要相同版本的 PDF 与提取结果；不可为了通过测试而跳过哈希校验。重新解析导致格式变化时，应重新核对原句、页码和标注，发布新的数据版本。
+
+这些题由 Codex 阅读现有提取文本后标注，尚未经过独立人工复核；拒答题包括未报告的费用、未测试硬件和虚构模型，不能据此证明所有缺失信息场景可靠。自动命中率针对指定参考证据，不保证覆盖多问句的全部答案；应逐题核对回答完整性。不把这套开发样本称为独立盲测基准。
+
 这一步评估 RAG 检索与单篇问答，不增加页面功能。论文搜索网站、PDF 解析、全文摘要、多篇对比及 Agent 任务完成率还不属于本套评测范围。
 
 ## 默认离线运行

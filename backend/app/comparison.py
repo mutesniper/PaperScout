@@ -7,7 +7,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .reading import get_reading, wait_operation
-from .retrieval import retrieve, chunks_for
+from .retrieval import retrieve, chunks_for, readable_evidence
 
 router = APIRouter(prefix='/api/comparisons')
 Dimension = Literal['goal', 'method', 'experiments', 'results', 'limitations']
@@ -23,7 +23,7 @@ DIMENSIONS = {
 def comparison_chunks(doc, dimension, ranked):
     """Use structural evidence for goals, not incidental 'research' mentions."""
     back_matter = re.compile(r'^(?:\d+[.\s]*)?(?:references|bibliography|author biographies|biographies|参考文献|作者简介)\b', re.I)
-    eligible = [chunk for chunk in chunks_for(doc) if not back_matter.search(chunk['section'].strip())]
+    eligible = readable_evidence(doc, [chunk for chunk in chunks_for(doc) if not back_matter.search(chunk['section'].strip())])
     allowed = {chunk['id'] for chunk in eligible}
     ranked = [chunk for chunk in ranked if chunk['id'] in allowed]
     if dimension != 'goal':

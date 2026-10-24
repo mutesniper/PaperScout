@@ -67,6 +67,50 @@ def chunks_for(doc):
 
 STOP = set('the a an is are was were this that what how which of to in on for and or does do paper study'.split())
 
+MAX_EVIDENCE_CHARS = 1600
+
+
+def readable_evidence(doc, selected):
+    """Expand each indexed excerpt by <=300 chars per side, within its fragment.
+
+    Keep original retrieval vectors, IDs and rankings. Very long sentences and
+    page breaks may remain incomplete; never invent text or discard evidence.
+    """
+    wanted = {c['id'] for c in selected}
+    if not wanted:
+        return []
+    expanded = {}
+    number = 0
+    for section in doc.sections:
+        for fragment in section.fragments:
+            text = ' '.join(fragment.text.split())
+            boundaries = [0]
+            for match in re.finditer(r'[.!?。！？][\"\u201d\u2019\)]*(?=\s|$)|[。！？]', text):
+                prefix = text[max(0, match.start() - 40):match.start() + 1]
+                if text[match.start()] == '.' and re.search(
+                    r'(?:\b(?:e\.g|i\.e|et al|Fig|Eq|Dr|Mr|Ms|Prof|vs)\.|\b[A-Z]\.)$', prefix, re.I):
+                    continue
+                boundaries.append(match.end())
+            boundaries.append(len(text))
+            for start in range(0, len(text), 850):
+                end = min(start + 1000, len(text))
+                if end - start >= 10:
+                    number += 1
+                    key = f'c{number}'
+                    if key in wanted:
+                        left = max((b for b in boundaries if max(0, start - 300) <= b <= start), default=None)
+                        right = min((b for b in boundaries if end <= b <= end + 300), default=None)
+                        if left is None:
+                            space = text.rfind(' ', max(0, start - 300), start + 1)
+                            left = space + 1 if space >= 0 else start
+                        if right is None:
+                            space = text.find(' ', end, min(len(text), end + 300) + 1)
+                            right = space if space >= 0 else end
+                        expanded[key] = text[left:right].strip()
+                if end == len(text):
+                    break
+    return [{**c, 'text': expanded.get(c['id'], c['text'])} for c in selected]
+
 
 def tokens(text):
     english = [x for x in re.findall(r'[a-z0-9]+', text.lower()) if x not in STOP]
@@ -102,7 +146,7 @@ async def retrieve(doc, question, embedding, store, lock):
     scores = lexical_scores(chunks, question)
     if not embedding.configured:
         order = sorted(range(len(chunks)), key=lambda i: scores[i], reverse=True)
-        return [chunks[i] for i in order if scores[i] > 0][:6], 'keyword'
+        return readable_evidence(doc, [chunks[i] for i in order if scores[i] > 0][:6]), 'keyword'
     key = hashlib.sha256(json.dumps(['qa-v1', doc.id, embedding.base_url, embedding.name, chunks],
         ensure_ascii=False, sort_keys=True).encode()).hexdigest()
     async with lock:
@@ -128,4 +172,4 @@ async def retrieve(doc, question, embedding, store, lock):
     for rank, i in enumerate(sorted(range(len(chunks)), key=lambda i: scores[i], reverse=True), 1):
         if scores[i] > 0:
             ranks[i] = ranks.get(i, 0) + 1 / (60 + rank)
-    return [chunks[i] for i in sorted(ranks, key=ranks.get, reverse=True)[:6]], 'semantic'
+    return readable_evidence(doc, [chunks[i] for i in sorted(ranks, key=ranks.get, reverse=True)[:6]]), 'semantic'
