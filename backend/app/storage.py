@@ -15,6 +15,7 @@ class Store:
             db.execute('CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, expires TEXT, payload TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS qa_vectors (key TEXT PRIMARY KEY, payload TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS questions (id TEXT PRIMARY KEY, reading_id TEXT, created_at TEXT, payload TEXT)')
+            db.execute('CREATE TABLE IF NOT EXISTS comparisons (id TEXT PRIMARY KEY, created_at TEXT, payload TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS readings (id TEXT PRIMARY KEY, created_at TEXT, payload TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS document_summaries (reading_id TEXT PRIMARY KEY, payload TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS summaries (reading_id TEXT, section_id TEXT, payload TEXT, PRIMARY KEY (reading_id, section_id))')
@@ -100,4 +101,14 @@ class Store:
     def question_history(self, reading_id):
         with self.connect() as db:
             rows = db.execute('SELECT payload FROM questions WHERE reading_id=? ORDER BY created_at DESC LIMIT 50', (reading_id,)).fetchall()
+        return [json.loads(row[0]) for row in rows]
+
+    def save_comparison(self, answer):
+        with self.connect() as db:
+            db.execute('INSERT INTO comparisons VALUES (?, ?, ?)',
+                (answer['id'], answer['created_at'], json.dumps(answer, ensure_ascii=False)))
+
+    def comparison_history(self):
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM comparisons ORDER BY created_at DESC LIMIT 20').fetchall()
         return [json.loads(row[0]) for row in rows]

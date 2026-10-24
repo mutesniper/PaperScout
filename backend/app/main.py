@@ -20,6 +20,7 @@ from .storage import Store
 from .ranking import source_candidates, rank_candidates, ranking_details
 from .reading import router as reading_router
 from .qa import router as qa_router
+from .comparison import router as comparison_router
 from .retrieval import CloudEmbedding
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -42,6 +43,7 @@ def create_app(db_path=None):
     app = FastAPI(title='PaperScout', lifespan=lifespan)
     app.include_router(reading_router)
     app.include_router(qa_router)
+    app.include_router(comparison_router)
     app.add_middleware(CORSMiddleware, allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173'], allow_methods=['GET', 'POST'], allow_headers=['Content-Type'])
 
     @app.get('/api/health')

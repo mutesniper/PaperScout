@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import PaperQuestions from './PaperQuestions.vue'
+import PaperComparison from './PaperComparison.vue'
 type Summary = { abstract: string; evidence: { page: number; quote: string }[]; model: string; created_at: string; scope: 'fulltext' | 'abstract' }
 type Reading = { id: string; title: string; kind: 'pdf' | 'abstract'; page_count: number; warnings: string[]; document_summary: Summary | null }
 type Entry = { id: string; title: string; kind: string }
@@ -89,6 +90,7 @@ async function open(id: string) {
       <p v-else class="result-context">{{ busy ? '正在处理，请稍候。' : '尚未生成全文摘要。旧版分章节总结不会当作全文摘要显示。' }}</p>
       <PaperQuestions v-if="doc.kind === 'pdf'" :key="doc.id" :reading-id="doc.id" :configured="configured" :disabled="!!busy" />
     </template>
+    <PaperComparison :library="library" :configured="configured" :disabled="!!busy" />
   </section>
 </template>
 

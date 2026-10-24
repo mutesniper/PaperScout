@@ -14,6 +14,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://fonts.googleapis.com/**', route => route.abort())
   await page.route('**/api/health', route => route.fulfill({ json: { model_configured: true, model: 'fixture-model' } }))
   await page.route('**/api/history', route => route.fulfill({ json: [] }))
+  await page.route('**/api/comparisons', route => route.fulfill({ json: [] }))
   await page.route('**/api/readings/*/questions', route => route.fulfill({ json: [] }))
   await page.route('**/api/readings', route => route.fulfill({ json: [doc] }))
   await page.route('**/api/readings/reading-fixture', route => route.fulfill({ json: doc }))
@@ -111,4 +112,51 @@ test('paper question insufficient evidence and cancellation', async ({ page }) =
   await page.getByRole('button', { name: '提问', exact: true }).click()
   await page.getByRole('button', { name: '取消问答', exact: true }).click()
   await expect(page.getByText('已取消本次问答。')).toBeVisible()
+})
+
+test('compare PDFs with evidence and restore table on mobile', async ({ page }) => {
+  let saved: any[] = []
+  const other = { ...doc, id: 'other', title: 'Another study' }
+  await page.route('**/api/readings', route => route.fulfill({ json: [doc, other, { ...doc, id: 'abstract', title: 'Abstract only', kind: 'abstract' }] }))
+  await page.route('**/api/comparisons', async route => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: saved })
+    const body = route.request().postDataJSON()
+    expect(body.reading_ids).toEqual([doc.id, other.id])
+    const answer = { id: 'comparison-1', created_at: '2026-10-24T00:00:00Z', papers: [doc, other], dimensions: body.dimensions,
+      cells: [doc, other].flatMap(p => body.dimensions.map((dimension: string) => ({ reading_id: p.id, dimension,
+        supported: dimension !== 'limitations', text: dimension === 'limitations' ? '未找到相关信息' : '使用语言模型完成任务',
+        evidence: dimension === 'limitations' ? [] : [{ id: p.id + ':c1', page: 2, text: 'The model selects tools.' }] }))) }
+    saved = [answer]; return route.fulfill({ json: answer })
+  })
+  await page.goto('/')
+  const panel = page.locator('.comparison')
+  await expect(panel.getByRole('button', { name: '生成对比', exact: true })).toBeDisabled()
+  await panel.getByLabel(doc.title, { exact: true }).check()
+  await panel.getByLabel(other.title, { exact: true }).check()
+  await expect(panel.getByLabel('Abstract only', { exact: true })).toHaveCount(0)
+  await panel.getByRole('button', { name: '生成对比', exact: true }).click()
+  await expect(panel.getByRole('table')).toBeVisible()
+  await expect(panel.getByText('未找到相关信息', { exact: true })).toHaveCount(2)
+  await panel.getByText('查看对比依据', { exact: true }).first().click()
+  await expect(panel.getByText('The model selects tools.').first()).toBeVisible()
+  await page.reload()
+  await expect(panel.getByRole('table')).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
+  await panel.screenshot({ path: 'test-results/comparison-mobile.png' })
+})
+
+test('comparison can be cancelled or fail without losing prior result', async ({ page }) => {
+  await page.route('**/api/readings', route => route.fulfill({ json: [doc, { ...doc, id: 'other', title: 'Another study' }] }))
+  await page.goto('/')
+  const panel = page.locator('.comparison')
+  await panel.getByLabel(doc.title, { exact: true }).check()
+  await panel.getByLabel('Another study', { exact: true }).check()
+  await page.route('**/api/comparisons', route => route.fulfill({ status: 502, json: { detail: '对比证据校验失败' } }))
+  await panel.getByRole('button', { name: '生成对比', exact: true }).click()
+  await expect(panel.getByRole('alert')).toContainText('对比证据校验失败')
+  await page.route('**/api/comparisons', async route => { await new Promise(resolve => setTimeout(resolve, 1000)); await route.abort() })
+  await panel.getByRole('button', { name: '生成对比', exact: true }).click()
+  await panel.getByRole('button', { name: '取消对比', exact: true }).click()
+  await expect(panel.getByRole('status')).toContainText('已取消对比')
 })

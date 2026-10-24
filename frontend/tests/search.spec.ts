@@ -16,6 +16,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://fonts.googleapis.com/**', route => route.abort())
   await page.route('**/api/health', route => route.fulfill({ json: { model_configured: false, model: null } }))
   await page.route('**/api/readings', route => route.fulfill({ json: [] }))
+  await page.route('**/api/comparisons', route => route.fulfill({ json: [] }))
   await page.route('**/api/history', route => route.fulfill({ json: [] }))
 })
 
