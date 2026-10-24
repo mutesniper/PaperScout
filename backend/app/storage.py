@@ -13,6 +13,8 @@ class Store:
         with self.connect() as db:
             db.execute('CREATE TABLE IF NOT EXISTS searches (id TEXT PRIMARY KEY, created_at TEXT, payload TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, expires TEXT, payload TEXT)')
+            db.execute('CREATE TABLE IF NOT EXISTS qa_vectors (key TEXT PRIMARY KEY, payload TEXT)')
+            db.execute('CREATE TABLE IF NOT EXISTS questions (id TEXT PRIMARY KEY, reading_id TEXT, created_at TEXT, payload TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS readings (id TEXT PRIMARY KEY, created_at TEXT, payload TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS document_summaries (reading_id TEXT PRIMARY KEY, payload TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS summaries (reading_id TEXT, section_id TEXT, payload TEXT, PRIMARY KEY (reading_id, section_id))')
@@ -80,3 +82,22 @@ class Store:
         with self.connect() as db:
             db.execute('INSERT OR REPLACE INTO summaries VALUES (?, ?, ?)',
                        (reading_id, summary.section_id, summary.model_dump_json()))
+
+    def vector_cache(self, key):
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM qa_vectors WHERE key=?', (key,)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def save_vector_cache(self, key, vectors):
+        with self.connect() as db:
+            db.execute('INSERT OR REPLACE INTO qa_vectors VALUES (?, ?)', (key, json.dumps(vectors)))
+
+    def save_question(self, answer):
+        with self.connect() as db:
+            db.execute('INSERT INTO questions VALUES (?, ?, ?, ?)',
+                       (answer['id'], answer['reading_id'], answer['created_at'], json.dumps(answer, ensure_ascii=False)))
+
+    def question_history(self, reading_id):
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM questions WHERE reading_id=? ORDER BY created_at DESC LIMIT 50', (reading_id,)).fetchall()
+        return [json.loads(row[0]) for row in rows]

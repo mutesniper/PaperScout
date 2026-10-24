@@ -219,7 +219,7 @@ async def build_document_summary(doc, model):
     for fragment in fragments:
         for start in range(0, len(fragment.text), 8000):
             part = Fragment(page=fragment.page, text=fragment.text[start:start + 8000])
-            if current and size + len(part.text) > 24000:
+            if current and size + len(part.text) > 48000:
                 groups.append(current)
                 current, size = [], 0
             current.append(part)
@@ -258,7 +258,7 @@ async def summarize(reading_id: str, request: Request):
         code = 'truncated' if reason == 'truncated summary' else 'evidence' if reason == 'unverifiable evidence' else 'format'
         logging.getLogger('paperscout').warning('document_summary reading_id=%s code=%s', reading_id, code)
         message = {
-            'truncated': '模型回复达到输出上限，扩大额度重试后仍被截断。可调高 LLM_SUMMARY_MAX_TOKENS 或换用模型后重试；未保存不完整摘要。',
+            'truncated': '模型回复达到输出上限，已停止且未自动重试，避免重复消耗。请检查模型思考模式或输出额度后重试；未保存不完整摘要。',
             'evidence': '模型引用的原句或页码与提取文本不匹配，请重新生成；未保存未经校验的摘要。',
             'format': '模型返回的摘要格式不符合要求，请重试；未保存不完整摘要。',
         }[code]

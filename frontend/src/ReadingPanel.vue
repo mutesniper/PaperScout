@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue'
+import PaperQuestions from './PaperQuestions.vue'
 type Summary = { abstract: string; evidence: { page: number; quote: string }[]; model: string; created_at: string; scope: 'fulltext' | 'abstract' }
 type Reading = { id: string; title: string; kind: 'pdf' | 'abstract'; page_count: number; warnings: string[]; document_summary: Summary | null }
 type Entry = { id: string; title: string; kind: string }
@@ -86,6 +87,7 @@ async function open(id: string) {
         <p class="result-context">依据引句已与提取文本核对。摘要由模型生成，重要结论仍建议对照论文确认。</p>
       </article>
       <p v-else class="result-context">{{ busy ? '正在处理，请稍候。' : '尚未生成全文摘要。旧版分章节总结不会当作全文摘要显示。' }}</p>
+      <PaperQuestions v-if="doc.kind === 'pdf'" :key="doc.id" :reading-id="doc.id" :configured="configured" :disabled="!!busy" />
     </template>
   </section>
 </template>

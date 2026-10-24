@@ -228,20 +228,21 @@ def test_long_document_uses_all_fragments_and_synthesizes_once():
     asyncio.run(check())
 
 
-def test_summary_retries_truncation_once_with_larger_budget(monkeypatch):
-    monkeypatch.setenv('LLM_SUMMARY_MAX_TOKENS', '8192')
+def test_summary_truncation_does_not_repeat_or_increase_spend(monkeypatch):
+    monkeypatch.delenv('LLM_SUMMARY_MAX_TOKENS', raising=False)
     async def check():
-        budgets = []
+        requests = []
         def handler(request):
-            budgets.append(json.loads(request.content)['max_tokens'])
-            if len(budgets) == 1:
-                return httpx.Response(200, json={'choices': [{'finish_reason': 'length', 'message': {'content': '{'}}]})
-            return httpx.Response(200, json={'choices': [{'finish_reason': 'stop', 'message': {'content': '{"points": []}'}}]})
+            requests.append(json.loads(request.content))
+            return httpx.Response(200, json={'choices': [{'finish_reason': 'length', 'message': {'content': '{'}}]})
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            model = CloudModel(client, 'https://test/v1', 'fake', 'test')
-            result = await model.summarize(Section(id='s', title='t', fragments=[Fragment(page=1, text='sample')]), 'pdf')
-            assert result == {'points': []}
-            assert budgets == [8192, 16384]
+            model = CloudModel(client, 'https://ws-test.cn-beijing.maas.aliyuncs.com/v1', 'fake', 'deepseek-v4.1-flash')
+            with pytest.raises(ValueError, match='truncated'):
+                await model.summarize(Section(id='s', title='t', fragments=[Fragment(page=1, text='sample')]), 'pdf')
+            assert len(requests) == 1
+            assert requests[0]['max_tokens'] == 4096
+            assert requests[0]['enable_thinking'] is False
+            assert CloudModel(client, 'https://example.test/v1', 'fake', 'deepseek-v4.1-flash')._summary_options() == {}
     asyncio.run(check())
 
 
@@ -267,3 +268,20 @@ def test_model_evidence_ids_resolve_original_text_and_reject_invented_ids():
     entries = CloudModel._catalog([{'page': 2, 'text': long}])
     assert ' '.join(e['quote'] for e in entries.values()).split() == long.split()
     assert all(len(e['quote']) <= 400 for e in entries.values())
+
+
+def test_medium_paper_uses_single_call_without_omitting_text():
+    from app.reading import build_document_summary
+    from app.reading_schemas import Reading
+    async def check():
+        text = 'Actual source evidence. ' * 1300
+        doc = Reading(id='medium', title='Medium', kind='pdf', origin='upload', created_at='now', page_count=1,
+            sections=[Section(id='s', title='s', fragments=[Fragment(page=1, text=text)])])
+        model = type('Model', (), {})()
+        model.summarize = AsyncMock()
+        model.summarize_document = AsyncMock(return_value={'abstract': '这是一份针对整篇论文生成的摘要，包含研究方法与结果。', 'evidence': [{'page': 1, 'quote': 'Actual source evidence.'}]})
+        await build_document_summary(doc, model)
+        model.summarize.assert_not_called()
+        model.summarize_document.assert_awaited_once()
+        assert model.summarize_document.call_args.args[0]['fragments'][0]['text'] == text
+    asyncio.run(check())

@@ -88,7 +88,7 @@ async function openRecord(id: string) {
           <fieldset :disabled="!!busy"><legend>论文来源</legend><label class="source-option"><input v-model="sources" type="checkbox" value="arxiv">arXiv <small>预印本</small></label><label class="source-option"><input v-model="sources" type="checkbox" value="semantic_scholar">Semantic Scholar <small>学术索引</small></label></fieldset>
           <div class="search-footer"><small>结果来自真实论文来源，自动合并重复记录。</small><button class="primary" :disabled="!!busy" @click="search">开始探索 <span>→</span></button></div>
         </div>
-        <aside class="guide"><div class="guide-icon">✳</div><h3>先找到，再读懂。</h3><p>不用在多个网站反复切换。把检索条件放在一起，让论文自己走近你的问题。</p><ol><li><b>从关键词出发</b><span>试试研究对象 + 方法名称。</span></li><li><b>查看全文线索</b><span>公开版本与预印本分别标记。</span></li><li><b>回到原始来源</b><span>每条结果都保留来源链接。</span></li></ol><div class="guide-note">支持公开 PDF 获取、上传与全文摘要。基于论文的问答将在后续阶段加入。</div></aside>
+        <aside class="guide"><div class="guide-icon">✳</div><h3>先找到，再读懂。</h3><p>不用在多个网站反复切换。把检索条件放在一起，让论文自己走近你的问题。</p><ol><li><b>从关键词出发</b><span>试试研究对象 + 方法名称。</span></li><li><b>查看全文线索</b><span>公开版本与预印本分别标记。</span></li><li><b>回到原始来源</b><span>每条结果都保留来源链接。</span></li></ol><div class="guide-note">支持公开 PDF 获取、上传与全文摘要。支持基于单篇 PDF 的问答与原文证据。</div></aside>
       </section>
       <div v-if="busy" class="message loading" role="status"><span>{{ busy }}</span><button @click="cancel">取消请求</button></div>
       <div v-if="error" class="message error" role="alert">{{ error }}</div><div v-if="notice" class="message" role="status">{{ notice }}</div>

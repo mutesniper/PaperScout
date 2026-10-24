@@ -19,6 +19,8 @@ from .schemas import Idea, Paper, SearchRequest, SearchResult, SourceResult
 from .storage import Store
 from .ranking import source_candidates, rank_candidates, ranking_details
 from .reading import router as reading_router
+from .qa import router as qa_router
+from .retrieval import CloudEmbedding
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / '.env')
@@ -30,18 +32,22 @@ def create_app(db_path=None):
     async def lifespan(app):
         app.state.store = Store(Path(db_path) if db_path else ROOT / 'backend/data/paperscout.db')
         app.state.reading_slots = asyncio.Semaphore(2)
+        app.state.embedding_lock = asyncio.Lock()
         async with httpx.AsyncClient(timeout=12, headers={'User-Agent': 'PaperScout/0.1 (personal research assistant)'}) as client:
             app.state.sources = Sources(client, os.getenv('SEMANTIC_SCHOLAR_API_KEY', ''))
             app.state.model = CloudModel(client, os.getenv('LLM_BASE_URL', ''), os.getenv('LLM_API_KEY', ''), os.getenv('LLM_MODEL', ''))
+            app.state.embedding = CloudEmbedding(client, os.getenv('EMBEDDING_BASE_URL', ''), os.getenv('EMBEDDING_API_KEY', ''), os.getenv('EMBEDDING_MODEL', ''))
             yield
 
     app = FastAPI(title='PaperScout', lifespan=lifespan)
     app.include_router(reading_router)
+    app.include_router(qa_router)
     app.add_middleware(CORSMiddleware, allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173'], allow_methods=['GET', 'POST'], allow_headers=['Content-Type'])
 
     @app.get('/api/health')
     def health():
-        return {'status': 'ok', 'model_configured': app.state.model.configured, 'model': app.state.model.name or None}
+        return {'status': 'ok', 'model_configured': app.state.model.configured, 'model': app.state.model.name or None,
+            'embedding_configured': app.state.embedding.configured, 'embedding_partial': app.state.embedding.partial}
 
     @app.post('/api/plan')
     async def plan(idea: Idea):
