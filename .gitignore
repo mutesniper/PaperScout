@@ -11,3 +11,4 @@ frontend/dist/
 *.log
 frontend/test-results/
 frontend/playwright-report/
+outputs/evaluation/

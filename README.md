@@ -1,5 +1,7 @@
 # PaperScout
 
+固定样本评测：参见 [评测说明](docs/EVALUATION.md)。默认命令 `.\.venv\Scripts\python backend/evaluation/run.py` 不联网、不调用模型；真实模型评测需显式添加 `--live`，Embedding 需显式添加 `--semantic`。
+
 从一个研究想法出发，寻找相关论文，提前了解公开全文线索。
 
 当前支持论文检索、PDF 摘要、单篇 RAG 问答、多篇对比，以及基于 LangGraph 的单 Agent 工具编排。可以手动操作，也可以提交研究目标，由模型选择搜索、获取公开 PDF、证据问答和对比工具；结果及执行记录保存在本地。
