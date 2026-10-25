@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { downloadMarkdown, summaryMarkdown } from './markdown'
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import PaperQuestions from './PaperQuestions.vue'
 import PaperComparison from './PaperComparison.vue'
 type Summary = { abstract: string; evidence: { page: number; quote: string }[]; model: string; created_at: string; scope: 'fulltext' | 'abstract' }
-type Reading = { id: string; title: string; kind: 'pdf' | 'abstract'; page_count: number; warnings: string[]; document_summary: Summary | null }
+type Reading = { id: string; title: string; source_url?: string | null; kind: 'pdf' | 'abstract'; page_count: number; warnings: string[]; document_summary: Summary | null }
 type Entry = { id: string; title: string; kind: string }
 const props = defineProps<{ configured: boolean }>()
 const doc = ref<Reading | null>(null), library = ref<Entry[]>([])
@@ -81,6 +82,7 @@ async function open(id: string) {
       <p v-for="warning in doc.warnings" :key="warning" class="result-context">{{ warning }}</p>
       <div class="summary-actions"><button class="primary" :disabled="!!busy || !configured" @click="run('正在生成摘要…', generate)">{{ doc.document_summary ? '重新生成摘要' : doc.kind === 'pdf' ? '生成全文摘要' : '概括来源摘要' }}</button></div>
       <article v-if="doc.document_summary" class="document-summary">
+        <button type="button" class="secondary" @click="downloadMarkdown(doc.title + '-摘要', summaryMarkdown(doc, doc.document_summary))">导出摘要 Markdown</button>
         <h3>{{ doc.kind === 'pdf' ? '全文摘要' : '来源摘要概括' }}</h3>
         <p class="result-context">{{ doc.document_summary.model }} · {{ new Date(doc.document_summary.created_at).toLocaleString('zh-CN') }}</p>
         <p class="abstract-content">{{ doc.document_summary.abstract }}</p>
@@ -88,7 +90,7 @@ async function open(id: string) {
         <p class="result-context">依据引句已与提取文本核对。摘要由模型生成，重要结论仍建议对照论文确认。</p>
       </article>
       <p v-else class="result-context">{{ busy ? '正在处理，请稍候。' : '尚未生成全文摘要。旧版分章节总结不会当作全文摘要显示。' }}</p>
-      <PaperQuestions v-if="doc.kind === 'pdf'" :key="doc.id" :reading-id="doc.id" :configured="configured" :disabled="!!busy" />
+      <PaperQuestions v-if="doc.kind === 'pdf'" :key="doc.id" :reading-id="doc.id" :paper-title="doc.title" :source-url="doc.source_url" :configured="configured" :disabled="!!busy" />
     </template>
     <PaperComparison :library="library" :configured="configured" :disabled="!!busy" />
   </section>

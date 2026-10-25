@@ -77,7 +77,7 @@ class Store:
     def reading_history(self):
         with self.connect() as db:
             rows = db.execute('SELECT payload FROM readings ORDER BY created_at DESC LIMIT 50').fetchall()
-        return [{k: data[k] for k in ('id', 'title', 'kind', 'created_at', 'page_count')}
+        return [{**{k: data[k] for k in ('id', 'title', 'kind', 'created_at', 'page_count')}, 'source_url': data.get('source_url')}
                 for (value,) in rows for data in [json.loads(value)]]
 
     def save_summary(self, reading_id, summary: Summary):

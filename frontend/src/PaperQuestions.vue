@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue'
+import { answerMarkdown, downloadMarkdown } from './markdown'
 type Evidence = { id: string; page: number; section: string; text: string }
 type Answer = { id: string; question: string; supported: boolean; reason: string; claims: { text: string; evidence: Evidence[] }[]; retrieval: string; created_at: string }
-const props = defineProps<{ readingId: string; configured: boolean; disabled: boolean }>()
+const props = defineProps<{ readingId: string; paperTitle: string; sourceUrl?: string | null; configured: boolean; disabled: boolean }>()
 const question = ref(''), history = ref<Answer[]>([]), busy = ref(false), error = ref(''), notice = ref('')
 const semantic = ref(false), partial = ref(false), loading = ref(true)
 let controller: AbortController | null = null
@@ -60,6 +61,7 @@ async function ask() {
     <p v-if="!configured" class="qa-help">请先配置云端模型，已有问答记录仍可查看。</p>
     <p v-if="error" class="message error" role="alert">{{ error }}</p><p v-if="notice" class="message" role="status">{{ notice }}</p>
     <div aria-live="polite"><article v-for="item in history" :key="item.id" class="qa-answer">
+      <button type="button" class="secondary" @click="downloadMarkdown(paperTitle + '-问答-' + item.id, answerMarkdown({ id: readingId, title: paperTitle, source_url: sourceUrl }, item))">导出问答 Markdown</button>
       <h4>{{ item.question }}</h4><p class="qa-help">{{ item.retrieval === 'semantic' ? '语义检索' : '关键词检索' }} · {{ new Date(item.created_at).toLocaleString('zh-CN') }}</p>
       <p v-if="!item.supported" class="insufficient">依据不足</p><p v-if="item.reason" class="answer-text">{{ item.reason }}</p>
       <div v-for="(claim, index) in item.claims" :key="index"><p class="answer-text">{{ claim.text }}</p><details><summary>查看回答依据</summary><blockquote v-for="evidence in claim.evidence" :key="evidence.id"><small>PDF 第 {{ evidence.page }} 页 · {{ evidence.section }}</small><p>{{ evidence.text }}</p></blockquote></details></div>

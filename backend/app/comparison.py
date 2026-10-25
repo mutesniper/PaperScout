@@ -128,7 +128,7 @@ async def compare(body: ComparisonRequest, request: Request):
             'reading_id': item['reading_id'], 'dimension': item['dimension'], 'supported': False,
             'text': '未找到相关信息，请核对原论文。', 'evidence': []}) for item in material]
         answer = {'id': str(uuid4()), 'created_at': datetime.now(timezone.utc).isoformat(),
-            'papers': [{'id': doc.id, 'title': doc.title} for doc in docs],
+            'papers': [{'id': doc.id, 'title': doc.title, 'source_url': doc.source_url} for doc in docs],
             'dimensions': body.dimensions, 'cells': cells,
             'retrieval': '+'.join(sorted(modes)), 'model': model.name}
         request.app.state.store.save_comparison(answer)

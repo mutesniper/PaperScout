@@ -3,6 +3,41 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 const doc = { id: 'reading-fixture', title: 'Tool selection study', kind: 'pdf', page_count: 2, warnings: [], document_summary: null }
 const summary = { abstract: '本文研究了工具选择方法，实验完成了一百个任务中的八十个，并指出英语任务之外的泛化仍需验证。', model: 'fixture-model', created_at: '2026-10-23T00:00:00Z', scope: 'fulltext', evidence: [{ page: 2, quote: 'The model completed 80 of 100 tasks.' }] }
+
+test('downloads summary, question and comparison without generating again', async ({ page }) => {
+  const posts: string[] = []
+  page.on('request', r => { if (r.method() === 'POST') posts.push(r.url()) })
+  await page.route('**/api/readings/reading-fixture', route => route.fulfill({ json: { ...doc, document_summary: summary } }))
+  await page.route('**/api/readings/reading-fixture/questions', route => route.fulfill({ json: [{
+    id: 'q-export', question: '有什么局限？', supported: true, reason: '', retrieval: 'keyword', created_at: '2026-10-25',
+    claims: [{ text: '仅英语任务', evidence: [{ id: 'c2', page: 2, section: 'Limitations', text: 'Only English tasks were evaluated.' }] }],
+  }] }))
+  await page.route('**/api/comparisons', route => route.fulfill({ json: [{
+    id: 'export-comparison', created_at: '2026-10-25', papers: [{ id: doc.id, title: doc.title }, { id: 'other', title: 'Other paper' }], dimensions: ['method'], cells: [
+      { reading_id: doc.id, dimension: 'method', supported: true, text: 'Method A', evidence: [{ id: 'e1', page: 2, text: 'Evidence for method A.' }] },
+      { reading_id: 'other', dimension: 'method', supported: false, text: '未找到足够信息', evidence: [] },
+    ],
+  }] }))
+  await page.goto('/')
+  await page.getByLabel('最近摘要').selectOption(doc.id)
+  async function exported(button: string) {
+    const event = page.waitForEvent('download')
+    await page.getByRole('button', { name: button, exact: true }).click()
+    const download = await event
+    expect(download.suggestedFilename()).toMatch(/\.md$/)
+    return readFile((await download.path())!, 'utf-8')
+  }
+  expect(await exported('导出摘要 Markdown')).toContain('PDF 第 2 页')
+  const answer = await exported('导出问答 Markdown')
+  expect(answer).toContain('Only English tasks were evaluated')
+  expect(answer).toContain(doc.title)
+  await page.getByLabel('对比历史').selectOption('export-comparison')
+  const comparison = await exported('导出对比 Markdown')
+  expect(comparison).toContain('Other paper')
+  expect(comparison).toContain('依据不足')
+  expect(comparison).toContain('Evidence for method A')
+  expect(posts).toEqual([])
+})
 test.beforeEach(async ({ page }) => {
   await page.route('http://paperscout.test/**', async route => {
     const path = new URL(route.request().url()).pathname

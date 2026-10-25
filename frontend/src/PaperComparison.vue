@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { comparisonMarkdown, downloadMarkdown } from './markdown'
 type Paper = { id: string; title: string; kind: string }
 type Evidence = { id: string; page: number; text: string }
 type Cell = { reading_id: string; dimension: string; supported: boolean; text: string; evidence: Evidence[] }
@@ -69,6 +70,7 @@ function cell(paper: string, dimension: string) {
           <details v-if="cell(paper.id, dimension)?.evidence.length"><summary>查看对比依据</summary><blockquote v-for="evidence in cell(paper.id, dimension)?.evidence" :key="evidence.id"><small>{{ paper.title }} · PDF 第 {{ evidence.page }} 页</small><p>{{ evidence.text }}</p></blockquote></details>
         </td></tr></tbody>
     </table></div>
+    <button v-if="result" type="button" class="secondary" @click="downloadMarkdown('PaperScout-对比-' + result.id, comparisonMarkdown(result, library))">导出对比 Markdown</button>
     <p v-if="result" class="help">未找到信息不等于论文没有相关内容。不同数据集、指标或实验条件下的结果不能直接比较优劣；重要结论请核对原文。</p>
   </section>
 </template>

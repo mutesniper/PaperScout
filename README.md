@@ -1,5 +1,13 @@
 # PaperScout
 
+## Docker 与演示
+
+在项目根目录准备 `.env`（首次可从 `.env.example` 复制），运行 `docker compose up --build -d`，打开 http://localhost:8080 。论文与历史保存在独立持久化数据卷；无需启动本地 Python 或 Vite。
+
+摘要、单条问答和多篇对比结果均支持 **Markdown 导出**，保留来源、原文与页码，不增加模型调用或 Token。详细启动、停止、配置及演示步骤见 [启动与演示说明](docs/DEMO.md)。
+
+已加入三篇真实论文的固定样本验证，以及引用句子补齐修复，质量与用量记录见 [真实论文评测结果](docs/EVALUATION_RESULTS.md)。MCP、多 Agent 和小模型微调仍在后续计划中。
+
 固定样本评测：参见 [评测说明](docs/EVALUATION.md)。默认命令 `.\.venv\Scripts\python backend/evaluation/run.py` 不联网、不调用模型；真实模型评测需显式添加 `--live`，Embedding 需显式添加 `--semantic`。
 
 从一个研究想法出发，寻找相关论文，提前了解公开全文线索。
