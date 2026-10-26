@@ -1,9 +1,49 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import ReadingPanel from './ReadingPanel.vue'
 import CitationButton from './CitationButton.vue'
 import ResearchAgent from './ResearchAgent.vue'
+import UsageGuide from './UsageGuide.vue'
 const reader = ref<InstanceType<typeof ReadingPanel> | null>(null)
+const navigation = [
+  { id: 'search-workspace', label: '论文探索', icon: '⌕' },
+  { id: 'agent-workspace', label: '研究任务', icon: '✧' },
+  { id: 'reading-workspace', label: '论文资料', icon: '▤' },
+]
+const activeSection = ref('search-workspace')
+let scrollFrame = 0
+let layoutObserver: ResizeObserver | undefined
+function syncNavigation() {
+  scrollFrame = 0
+  const sections = navigation.map(item => document.getElementById(item.id))
+  const boundary = Math.min(window.innerHeight * 0.3, 180)
+  let current = navigation[0].id
+  for (const section of sections) {
+    if (section && section.getBoundingClientRect().top <= boundary) current = section.id
+  }
+  // Short final modules may never reach the activation line before the page ends.
+  if (window.scrollY > 0 && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) {
+    current = navigation[navigation.length - 1].id
+  }
+  activeSection.value = current
+}
+function queueNavigationSync() {
+  if (!scrollFrame) scrollFrame = requestAnimationFrame(syncNavigation)
+}
+onMounted(() => {
+  window.addEventListener('scroll', queueNavigationSync, { passive: true })
+  window.addEventListener('resize', queueNavigationSync)
+  layoutObserver = new ResizeObserver(queueNavigationSync)
+  const main = document.querySelector('main')
+  if (main) layoutObserver.observe(main)
+  queueNavigationSync()
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', queueNavigationSync)
+  window.removeEventListener('resize', queueNavigationSync)
+  layoutObserver?.disconnect()
+  cancelAnimationFrame(scrollFrame)
+})
 type Plan = { queries: string[]; year_from: number | null; year_to: number | null }
 type Sort = 'relevance' | 'newest' | 'oldest' | 'citations'
 type Paper = { publication_date?: string | null; citation_count?: number | null; citation_source?: string | null; arxiv_id?: string | null; id: string; title: string; authors: string[]; year: number | null; abstract: string; doi: string | null; sources: string[]; url: string; fulltext_url: string | null; access: string; evidence: string }
@@ -63,33 +103,32 @@ async function openRecord(id: string) {
   <div class="layout">
     <aside class="sidebar">
       <a class="brand" href="/" aria-label="PaperScout 首页"><span class="brand-mark">P<span>↗</span></span>PaperScout</a>
-      <div class="nav-active"><span>⌕</span> 论文探索 <small>01</small></div>
+      <nav class="workspace-nav" aria-label="工作区导航"><a v-for="(item, index) in navigation" :key="item.id" :href="'#' + item.id" :class="{ 'nav-active': activeSection === item.id }" :aria-current="activeSection === item.id ? 'location' : undefined">{{ item.icon }} <span>{{ item.label }}</span><small>{{ String(index + 1).padStart(2, '0') }}</small></a></nav>
       <div class="history-head">最近检索 <span>{{ history.length }}</span></div>
       <p v-if="!history.length" class="empty-history">你的探索记录会保存在这里。</p>
       <button v-for="item in history" :key="item.id" class="history-item" :disabled="!!busy" @click="openRecord(item.id)">
         <span>{{ item.queries.join(' · ') }}</span><small>{{ new Date(item.created_at).toLocaleDateString('zh-CN') }} · {{ item.count }} 篇</small>
       </button>
-      <div class="sidebar-footer"><span class="status-dot"></span> 第二阶段 · 检索与摘要<p>让每一个想法，都有迹可循。</p></div>
+      <div class="sidebar-footer"><span class="status-dot"></span> 个人研究工作台<p>让每一个想法，都有迹可循。</p></div>
     </aside>
     <main>
-      <header class="topbar"><span>你的研究，从这里开始</span><span class="model-state">{{ configured ? model : '手动检索可用' }}</span></header>
+      <header class="topbar"><span>你的研究，从这里开始</span><div class="topbar-actions"><span class="model-state">{{ configured ? model : '手动检索可用' }}</span><UsageGuide /></div></header>
       <section class="intro"><div class="eyebrow">A CLEARER PATH TO RESEARCH</div><h1>好想法，值得找到好论文<span>。</span></h1><p>从一个问题出发，发现相关研究，先了解全文是否可获取。</p></section>
-      <section class="workspace">
+      <section id="search-workspace" class="workspace">
         <div class="search-panel">
           <div class="section-title"><span class="step">01</span><h2>描述你的想法</h2><span class="optional">可选</span></div>
           <label class="sr-only" for="idea">研究想法</label><textarea id="idea" v-model="idea" :disabled="!!busy" maxlength="3000" placeholder="例如：我想了解小语言模型如何调用工具，寻找近几年的相关研究。" rows="3"></textarea>
-          <div class="plan-footer"><span>{{ configured ? '由云端模型整理关键词，检索前可修改。' : '尚未配置云端模型，可直接在下方填写关键词。' }}</span><button class="secondary" :disabled="!!busy || !configured" @click="makePlan">生成检索计划 ↗</button></div>
+          <div class="plan-footer"><span>{{ configured ? '' : '未配置模型 · 可手动检索' }}</span><button class="secondary" :disabled="!!busy || !configured" @click="makePlan">生成检索计划 ↗</button></div>
           <div class="divider"></div>
           <div class="section-title"><span class="step">02</span><h2>确认检索条件</h2><span class="optional">支持手动检索</span></div>
-          <label for="queries">检索词 <small>最多 3 行，每行独立查询后汇总；建议使用简短英文关键词</small></label>
+          <label for="queries">检索词 <small>最多 3 行</small></label>
           <textarea id="queries" v-model="queries" :disabled="!!busy" placeholder="small language models tool use" rows="3"></textarea>
           <div class="filters"><div><label for="from">起始年份</label><input id="from" v-model="yearFrom" :disabled="!!busy" type="number" min="1900" max="2100" placeholder="不限"></div><div><label for="to">结束年份</label><input id="to" v-model="yearTo" :disabled="!!busy" type="number" min="1900" max="2100" placeholder="不限"></div><div><label for="limit">返回前多少篇</label><select id="limit" v-model="limit" :disabled="!!busy"><option :value="5">5 篇</option><option :value="10">10 篇</option><option :value="20">20 篇</option><option :value="50">50 篇</option><option :value="100">100 篇</option></select></div></div>
           <div class="filters"><div><label for="sort">排序方式</label><select id="sort" v-model="sort" :disabled="!!busy"><option v-for="(label, value) in sortLabels" :key="value" :value="value">{{ label }}</option></select></div></div>
-          <p class="result-context">先获取候选、去重排序，再返回前 N 篇。时间与引用量排序仅限本次候选；引用量未知的论文排在最后。</p>
           <fieldset :disabled="!!busy"><legend>论文来源</legend><label class="source-option"><input v-model="sources" type="checkbox" value="arxiv">arXiv <small>预印本</small></label><label class="source-option"><input v-model="sources" type="checkbox" value="semantic_scholar">Semantic Scholar <small>学术索引</small></label></fieldset>
-          <div class="search-footer"><small>结果来自真实论文来源，自动合并重复记录。</small><button class="primary" :disabled="!!busy" @click="search">开始探索 <span>→</span></button></div>
+          <div class="search-footer"><small>arXiv / Semantic Scholar</small><button class="primary" :disabled="!!busy" @click="search">开始探索 <span>→</span></button></div>
         </div>
-        <aside class="guide"><div class="guide-icon">✳</div><h3>先找到，再读懂。</h3><p>不用在多个网站反复切换。把检索条件放在一起，让论文自己走近你的问题。</p><ol><li><b>从关键词出发</b><span>试试研究对象 + 方法名称。</span></li><li><b>查看全文线索</b><span>公开版本与预印本分别标记。</span></li><li><b>回到原始来源</b><span>每条结果都保留来源链接。</span></li></ol><div class="guide-note">支持公开 PDF 获取、上传与全文摘要。支持基于单篇 PDF 的问答与原文证据。</div></aside>
+
       </section>
       <div v-if="busy" class="message loading" role="status"><span>{{ busy }}</span><button @click="cancel">取消请求</button></div>
       <div v-if="error" class="message error" role="alert">{{ error }}</div><div v-if="notice" class="message" role="status">{{ notice }}</div>
@@ -100,8 +139,8 @@ async function openRecord(id: string) {
         <div v-else-if="!visiblePapers.length" class="empty"><h3>{{ result.sources.every(s => s.status === 'error') ? '论文来源暂时不可用' : '没有符合当前条件的论文' }}</h3><p>可以调整关键词、放宽年份，或稍后重试。</p></div>
         <article v-for="(paper, index) in visiblePapers" :key="paper.id" class="paper"><div class="paper-index">{{ String(index + 1).padStart(2, '0') }}</div><div class="paper-body"><div class="paper-meta"><span>{{ paper.publication_date ?? paper.year ?? '日期未知' }}</span><span>{{ paper.sources.map(s => labels[s]).join(' · ') }}</span><span>引用 {{ paper.citation_count ?? '未知' }}{{ paper.citation_source === 'semantic_scholar' ? ' · Semantic Scholar' : '' }}</span><span :class="['access', { available: !!paper.fulltext_url }]">{{ labels[paper.access] }}</span></div><h3><a :href="paper.url" target="_blank" rel="noopener noreferrer">{{ paper.title }} ↗</a></h3><p class="authors">{{ paper.authors.slice(0, 6).join(', ') }}{{ paper.authors.length > 6 ? ' 等' : '' }}</p><details><summary>{{ paper.abstract ? '查看来源摘要' : '来源未提供摘要' }}</summary><p class="abstract">{{ paper.abstract || '暂无摘要。' }}</p></details><p class="evidence">{{ paper.evidence }}</p><div class="paper-links"><a :href="paper.url" target="_blank" rel="noopener noreferrer">查看原始来源 ↗</a><a v-if="paper.fulltext_url" :href="paper.fulltext_url" target="_blank" rel="noopener noreferrer">打开全文链接 ↗</a><button v-if="paper.abstract" class="secondary" @click="reader?.importPaper(result!.id, paper.id, 'abstract')">概括来源摘要</button><button v-if="paper.fulltext_url" class="secondary" @click="reader?.importPaper(result!.id, paper.id, 'pdf')">获取公开 PDF</button><small v-if="paper.doi">DOI: {{ paper.doi }}</small></div><CitationButton :key="result!.id + paper.id" :paper="paper" /></div></article>
       </section>
-      <ResearchAgent :configured="configured" />
-      <ReadingPanel ref="reader" :configured="configured" />
+      <ResearchAgent id="agent-workspace" :configured="configured" />
+      <ReadingPanel id="reading-workspace" ref="reader" :configured="configured" />
       <footer>PaperScout <span>从想法到证据，一步一步。</span></footer>
     </main>
   </div>

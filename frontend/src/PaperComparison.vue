@@ -48,7 +48,6 @@ function cell(paper: string, dimension: string) {
 <template>
   <section class="comparison" aria-labelledby="comparison-title">
     <h3 id="comparison-title">多篇论文对比</h3>
-    <p class="help">选择 2～5 篇已上传的 PDF，按相同维度整理差异。只发送检索到的相关片段给回答模型；首次语义检索还会建立论文向量索引。</p>
     <p v-if="papers.length < 2" class="help">请先上传至少两篇 PDF，无需等待摘要生成成功。</p>
     <form @submit.prevent="compare">
       <fieldset :disabled="busy || disabled"><legend>选择对比论文（{{ selected.length }}/5）</legend>
@@ -71,7 +70,6 @@ function cell(paper: string, dimension: string) {
         </td></tr></tbody>
     </table></div>
     <button v-if="result" type="button" class="secondary" @click="downloadMarkdown('PaperScout-对比-' + result.id, comparisonMarkdown(result, library))">导出对比 Markdown</button>
-    <p v-if="result" class="help">未找到信息不等于论文没有相关内容。不同数据集、指标或实验条件下的结果不能直接比较优劣；重要结论请核对原文。</p>
   </section>
 </template>
 

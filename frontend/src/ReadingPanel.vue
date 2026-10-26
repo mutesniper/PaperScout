@@ -71,8 +71,7 @@ async function open(id: string) {
 <template>
   <section ref="panel" class="summary-panel" aria-labelledby="summary-heading">
     <div class="summary-title"><div><div class="eyebrow">FROM PAPER TO INSIGHT</div><h2 id="summary-heading">论文全文摘要</h2></div><label class="secondary upload-label">上传 PDF<input aria-label="上传 PDF" type="file" accept="application/pdf,.pdf" :disabled="!!busy" @change="upload"></label></div>
-    <p class="result-context">上传论文，获得一份涵盖研究问题、方法、主要结果与局限的全文摘要。支持 20 MB / 100 页以内的文字型 PDF。</p>
-    <p class="result-context">{{ configured ? '上传后自动生成摘要，提取文本会发送给你配置的云端模型；长论文可能需要多次调用。' : '尚未配置模型：可以先上传，配置后再生成摘要。' }}</p>
+    <p class="result-context">{{ configured ? '上传后自动生成摘要 · 20 MB / 100 页以内' : '未配置模型 · 可先上传 PDF' }}</p>
     <label for="summary-library">最近摘要</label><select id="summary-library" :value="doc?.id ?? ''" :disabled="!!busy" @change="open(($event.target as HTMLSelectElement).value)"><option value="">选择已保存的论文</option><option v-for="item in library" :key="item.id" :value="item.id">{{ item.kind === 'pdf' ? '全文' : '仅来源摘要' }} · {{ item.title }}</option></select>
     <div v-if="busy" class="message loading" role="status">{{ busy }}<button @click="controller?.abort()">取消生成</button></div>
     <div v-if="error" role="alert" class="message error">{{ error }}</div><div v-if="notice" role="status" class="message">{{ notice }}</div>
@@ -87,9 +86,8 @@ async function open(id: string) {
         <p class="result-context">{{ doc.document_summary.model }} · {{ new Date(doc.document_summary.created_at).toLocaleString('zh-CN') }}</p>
         <p class="abstract-content">{{ doc.document_summary.abstract }}</p>
         <details><summary>查看摘要依据</summary><blockquote v-for="(item, index) in doc.document_summary.evidence" :key="index"><small>{{ doc.kind === 'pdf' ? `PDF 第 ${item.page} 页` : '来源摘要' }}</small><p>{{ item.quote }}</p></blockquote></details>
-        <p class="result-context">依据引句已与提取文本核对。摘要由模型生成，重要结论仍建议对照论文确认。</p>
       </article>
-      <p v-else class="result-context">{{ busy ? '正在处理，请稍候。' : '尚未生成全文摘要。旧版分章节总结不会当作全文摘要显示。' }}</p>
+      <p v-else class="result-context">{{ busy ? '正在处理，请稍候。' : '尚未生成全文摘要。' }}</p>
       <PaperQuestions v-if="doc.kind === 'pdf'" :key="doc.id" :reading-id="doc.id" :paper-title="doc.title" :source-url="doc.source_url" :configured="configured" :disabled="!!busy" />
     </template>
     <PaperComparison :library="library" :configured="configured" :disabled="!!busy" />

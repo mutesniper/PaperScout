@@ -50,10 +50,9 @@ async function ask() {
 <template>
   <section class="paper-questions" aria-labelledby="questions-title">
     <h3 id="questions-title">问这篇论文</h3>
-    <p class="qa-help">围绕当前论文提出完整问题，例如“实验使用了哪些数据集？”每个问题默认从整篇论文中独立检索，仅相关原文片段会发送给回答模型。</p>
-    <p class="qa-help" v-if="semantic">已启用语义检索。首次提问会把论文文本分批发送给 Embedding 服务建立索引，后续复用。</p>
+    <p class="qa-help" v-if="semantic">语义检索已启用</p>
     <p class="qa-help" v-else-if="partial">Embedding 配置不完整，请补全或全部清空后重启后端。</p>
-    <p class="qa-help" v-else>当前使用关键词检索，跨语言匹配有限；可优先使用论文中的英文术语，或配置多语言 Embedding。</p>
+    <p class="qa-help" v-else>关键词检索</p>
     <form @submit.prevent="ask">
       <label>论文问题<textarea v-model="question" rows="3" maxlength="1500" :disabled="busy || disabled" placeholder="这篇论文的方法有哪些局限？" /></label>
       <div class="qa-actions"><button type="submit" class="primary" :disabled="busy || disabled || loading || !configured || partial">{{ busy ? '正在查找依据并回答…' : '提问' }}</button><button v-if="busy" type="button" class="secondary" @click="controller?.abort()">取消问答</button></div>
@@ -66,7 +65,6 @@ async function ask() {
       <p v-if="!item.supported" class="insufficient">依据不足</p><p v-if="item.reason" class="answer-text">{{ item.reason }}</p>
       <div v-for="(claim, index) in item.claims" :key="index"><p class="answer-text">{{ claim.text }}</p><details><summary>查看回答依据</summary><blockquote v-for="evidence in claim.evidence" :key="evidence.id"><small>PDF 第 {{ evidence.page }} 页 · {{ evidence.section }}</small><p>{{ evidence.text }}</p></blockquote></details></div>
     </article></div>
-    <p v-if="history.length" class="qa-help">证据来自当前论文的提取文本。引用可追溯不代表推论必然正确；检索未命中也不等于论文没有相关内容。</p>
   </section>
 </template>
 
