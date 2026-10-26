@@ -307,3 +307,43 @@ def test_medium_paper_uses_single_call_without_omitting_text():
         model.summarize_document.assert_awaited_once()
         assert model.summarize_document.call_args.args[0]['fragments'][0]['text'] == text
     asyncio.run(check())
+
+@pytest.mark.parametrize('error', [httpx.ReadTimeout('timeout'), TimeoutError()])
+def test_download_timeout_retries_once(monkeypatch, error):
+    from app.reading import download_with_retry
+    download = AsyncMock(side_effect=[error, (b'%PDF-ok', 'https://example.org/p.pdf')])
+    monkeypatch.setattr('app.reading.download_pdf', download)
+    result = asyncio.run(download_with_retry('https://example.org/p.pdf', None))
+    assert result[0] == b'%PDF-ok' and download.await_count == 2
+
+
+def test_download_repeated_timeout_stops(monkeypatch):
+    from app.reading import download_with_retry
+    download = AsyncMock(side_effect=httpx.ReadTimeout('timeout'))
+    monkeypatch.setattr('app.reading.download_pdf', download)
+    with pytest.raises(httpx.ReadTimeout):
+        asyncio.run(download_with_retry('https://example.org/p.pdf', None))
+    assert download.await_count == 2
+
+
+@pytest.mark.parametrize('error', [ValueError('not PDF'), asyncio.CancelledError(),
+    httpx.HTTPStatusError('forbidden', request=httpx.Request('GET', 'https://example.org'), response=httpx.Response(403))])
+def test_download_non_timeout_not_retried(monkeypatch, error):
+    from app.reading import download_with_retry
+    download = AsyncMock(side_effect=error)
+    monkeypatch.setattr('app.reading.download_pdf', download)
+    with pytest.raises(type(error)):
+        asyncio.run(download_with_retry('https://example.org/p.pdf', None))
+    assert download.await_count == 1
+
+
+def test_download_retry_preserves_outer_deadline(monkeypatch):
+    from app.reading import download_with_retry
+    download = AsyncMock(side_effect=httpx.ReadTimeout('timeout'))
+    monkeypatch.setattr('app.reading.download_pdf', download)
+    async def check():
+        async with asyncio.timeout(.01):
+            await download_with_retry('https://example.org/p.pdf', None)
+    with pytest.raises(TimeoutError):
+        asyncio.run(check())
+    assert download.await_count == 1

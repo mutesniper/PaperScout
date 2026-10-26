@@ -107,6 +107,19 @@ async def download_pdf(url, client):
     raise ValueError('全文链接重定向过多。')
 
 
+async def download_with_retry(url, client):
+    """One timeout retry; caller retains the shared total deadline and cancellation."""
+    for attempt in range(2):
+        try:
+            async with asyncio.timeout(25):
+                return await download_pdf(url, client)
+        except (httpx.TimeoutException, TimeoutError):
+            if attempt:
+                raise
+            logging.getLogger(__name__).info('pdf_download timeout; retry=1')
+            await asyncio.sleep(0.5)
+
+
 def get_reading(request, reading_id):
     doc = request.app.state.store.reading(reading_id)
     if doc is None:
@@ -173,7 +186,7 @@ async def import_paper(body: ImportPaper, request: Request):
         async with asyncio.timeout(50):
             # No environment proxies or credentials are forwarded to paper hosts.
             async with httpx.AsyncClient(timeout=20, trust_env=False) as client:
-                data, url = await wait_operation(request, download_pdf(paper.fulltext_url, client), 50)
+                data, url = await wait_operation(request, download_with_retry(paper.fulltext_url, client), 50)
     except DownloadAddressError as exc:
         raise HTTPException(502, str(exc) + ' 此结果不表示论文付费。') from None
     except (httpx.TimeoutException, TimeoutError):

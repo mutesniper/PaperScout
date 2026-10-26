@@ -2,7 +2,7 @@
 from typing import Annotated, Literal, TypedDict
 from pydantic import Field, TypeAdapter
 from langgraph.graph import StateGraph, START, END
-from .agent import Action, SearchAction, ReadAction, CompareAction, AnswerAction, FinishAction
+from .agent import Action, SearchAction, ReadAction, CompareAction, AnswerAction, FinishAction, action_schema, parse_action
 
 MAX_DECISIONS = 18
 
@@ -74,7 +74,8 @@ def build_graph(model, run, context, event, execute, finish):
         adapter = RETRIEVAL if role == 'retrieval' else ANALYSIS
         data = shared()
         data['assigned_task'] = state['task']
-        action = adapter.validate_python(await model.agent_role_decide(role, data, adapter.json_schema()))
+        schema = action_schema(adapter, [*data['allowed_actions'], 'report'])
+        action = parse_action(await model.agent_role_decide(role, data, schema), adapter)
         if action.tool == 'report':
             no_progress += 1
             event('report', 'partial', action.reason)

@@ -262,3 +262,115 @@ def test_semantic_failure_preserves_arxiv_results():
         assert [p.id for p in result.papers] == ['kept']
         assert result.sources[1].status == 'error'
     asyncio.run(check())
+
+
+@pytest.mark.parametrize('legacy_tool', ['read', 'download_pdf'])
+def test_existing_pdf_download_is_corrected_then_answered(tmp_path, monkeypatch, legacy_tool):
+    with TestClient(create_app(tmp_path / 'db')) as client:
+        prepare(client)
+        download = AsyncMock(side_effect=AssertionError('Existing PDF must not be downloaded'))
+        monkeypatch.setattr('app.agent.import_paper', download)
+        contexts = []
+        async def choose(context, schema):
+            contexts.append(context)
+            assert 'download_pdf' not in schema['discriminator']['mapping']
+            assert 'ReadAction' not in schema['$defs']
+            assert 'compare' not in schema['discriminator']['mapping']
+            assert context['available_pdfs'][0] == {
+                'reading_id': 'paper', 'title': 'paper', 'status': 'ready_for_analysis'}
+            if len(contexts) == 1:
+                return {'tool': legacy_tool, 'paper_id': 'paper', 'reason': '误把分析当下载'}
+            if len(contexts) == 2:
+                assert context['events'][-2]['status'] == 'corrected'
+                assert '不是文件读取失败' in context['events'][-2]['message']
+                assert 'paper' not in context['read_outcomes']
+                assert context['remaining']['download_pdf'] == 5
+                return {'tool': 'answer', 'reading_id': 'paper', 'question': '有哪些局限？', 'reason': '直接分析已有论文'}
+            return {'tool': 'finish', 'reason': '已完成证据问答'}
+        client.app.state.model.agent_decide = AsyncMock(side_effect=choose)
+        result = wait(client, start(client, ['paper']))
+        assert result['status'] == 'completed'
+        assert result['answers'][0]['claims'][0]['evidence'][0]['page'] == 2
+        download.assert_not_awaited()
+
+
+def test_repeated_existing_pdf_download_corrections_are_bounded(tmp_path, monkeypatch):
+    with TestClient(create_app(tmp_path / 'db')) as client:
+        prepare(client)
+        download = AsyncMock()
+        monkeypatch.setattr('app.agent.import_paper', download)
+        client.app.state.model.agent_decide = AsyncMock(return_value={
+            'tool': 'download_pdf', 'paper_id': 'paper', 'reason': '读取'})
+        result = wait(client, start(client, ['paper']))
+        assert result['status'] == 'limited' and result['steps'] == 2
+        download.assert_not_awaited()
+
+
+def test_download_only_advertised_for_unattempted_public_candidates(tmp_path, monkeypatch):
+    with TestClient(create_app(tmp_path / 'db')) as client:
+        prepare(client)
+        search = SearchResult(id='state-search', created_at='2026-10-26', request=SearchRequest(plan=Plan(queries=['tools'])),
+            papers=[paper(fulltext_url='https://example.org/a.pdf', access='open_fulltext')],
+            sources=[SourceResult(source='arxiv', status='ok', count=1)])
+        client.app.state.collect_search = AsyncMock(return_value=search)
+        download = AsyncMock(side_effect=HTTPException(502, '下载失败'))
+        monkeypatch.setattr('app.agent.import_paper', download)
+        calls = []
+        async def choose(context, schema):
+            allowed = schema['discriminator']['mapping']
+            calls.append(context)
+            assert 'read' not in allowed
+            if len(calls) == 1:
+                assert set(allowed) == {'search', 'finish'}
+                return {'tool': 'search', 'reason': '搜索', 'plan': {'queries': ['tools']}}
+            if len(calls) == 2:
+                assert 'download_pdf' in allowed
+                assert context['downloadable_candidate_ids'] == ['one']
+                return {'tool': 'download_pdf', 'paper_id': 'one', 'reason': '下载候选'}
+            assert 'download_pdf' not in allowed
+            assert context['downloadable_candidate_ids'] == []
+            assert context['read_outcomes']['one']['status'] == 'failed'
+            return {'tool': 'finish', 'reason': '网络阻碍'}
+        client.app.state.model.agent_decide = AsyncMock(side_effect=choose)
+        assert wait(client, start(client))['status'] == 'partial'
+        download.assert_awaited_once()
+
+@pytest.mark.parametrize('mode', ['single', 'multi'])
+def test_title_empty_search_simplifies_and_skips_secondary(tmp_path, mode):
+    with TestClient(create_app(tmp_path / 'db')) as client:
+        prepare(client)
+        calls = []
+        async def collect(body):
+            calls.append(body)
+            assert body.sources == ['arxiv']
+            rows = [] if len(calls) == 1 else [paper(title='TinyAgent: Function Calling at the Edge',
+                fulltext_url='https://arxiv.org/pdf/2409.00608', access='open_preprint')]
+            return SearchResult(id='title-search', created_at='2026-10-27', request=body,
+                papers=rows, sources=[SourceResult(source='arxiv', status='ok', count=len(rows))])
+        client.app.state.collect_search = collect
+        search = {'tool': 'search', 'reason': '查找指定论文',
+                  'plan': {'queries': ['TinyAgent: Function Calling at the Edge']}}
+        finish = {'tool': 'finish', 'reason': '已找到候选'}
+        client.app.state.model.agent_decide = AsyncMock(side_effect=[search, finish])
+        client.app.state.model.agent_role_decide = AsyncMock(side_effect=[
+            {'tool': 'delegate', 'role': 'retrieval', 'task': '查找指定论文', 'reason': '搜索'}, search, finish])
+        identifier = client.post('/api/agent/runs', json={'goal': '搜索 TinyAgent', 'mode': mode}).json()['id']
+        result = wait(client, identifier)
+        assert result['status'] == 'completed'
+        assert len(calls) == 2
+        assert calls[1].plan.queries == ['TinyAgent Function Calling Edge']
+        assert result['papers'][0]['title'] == 'TinyAgent: Function Calling at the Edge'
+        assert any('去掉常见虚词' in e['message'] for e in result['events'])
+
+
+def test_arxiv_error_does_not_trigger_simplification():
+    from types import SimpleNamespace
+    from app.agent import search_arxiv_first
+    calls = []
+    async def collect(body):
+        calls.append(body)
+        return SearchResult(id='failure', created_at='2026-10-27', request=body, papers=[],
+            sources=[SourceResult(source=body.sources[0], status='error', count=0, message='来源限流')])
+    asyncio.run(search_arxiv_first(SimpleNamespace(state=SimpleNamespace(collect_search=collect)),
+        Plan(queries=['TinyAgent at the Edge']), lambda *args: None))
+    assert [c.sources for c in calls] == [['arxiv'], ['semantic_scholar']]
