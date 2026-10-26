@@ -231,6 +231,12 @@ EMBEDDING_MODEL=该服务支持的多语言向量模型名称
 
 检索实现参考：[FAISS 官方文档](https://faiss.ai/)、[阿里云 Embedding 模型说明](https://help.aliyun.com/en/model-studio/embedding-rerank-model/)。
 
+### 本地 MCP 工具接口
+
+支持 stdio MCP 客户端调用论文搜索、公开 PDF 导入、论文库与元数据查询、全文摘要、单篇 RAG 问答及多篇对比，共 7 个工具。适配器复用正在运行的 HTTP 后端，与网页共享该后端的数据和模型配置；模型密钥不放进 MCP 客户端。MCP 为可选依赖，不改变 Docker 镜像或网页操作。
+
+安装、客户端配置和只读连通测试见 [MCP 接入说明](docs/MCP.md)。本地协议与真实 HTTP 临时数据库联调已通过；真实来源下载和付费模型的 MCP 链路未额外调用验收。多 Agent 仍为后续计划。
+
 ### 单 Agent 研究任务
 
 更新依赖后重启后端：`.\.venv\Scripts\python -m pip install -r backend\requirements-lock.txt`。页面的“研究任务助手”支持输入目标，例如“帮我找小模型调用工具的论文，选三篇并比较它们的方法”。可选中最多 5 篇已上传的 PDF 作为本任务资料，绕过公开下载不可用的情况。沿用 `LLM_*` 与可选 `EMBEDDING_*`，无需新增密钥。
