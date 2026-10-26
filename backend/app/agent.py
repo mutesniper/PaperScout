@@ -58,6 +58,7 @@ class Strict(BaseModel):
 class StartRun(Strict):
     goal: str = Field(min_length=2, max_length=3000)
     reading_ids: list[str] = Field(default_factory=list, max_length=5)
+    mode: Literal['single', 'multi'] = 'single'
 
 
 class Action(Strict):
@@ -125,8 +126,25 @@ async def execute_run(app, run):
 
     def event(tool, status, message):
         run['events'].append({'tool': tool, 'status': status, 'message': message,
+                              'role': run.get('active_agent', 'single'),
                               'at': datetime.now(timezone.utc).isoformat()})
         persist()
+
+    def context():
+        return {'date': datetime.now(timezone.utc).date().isoformat(), 'goal': run['goal'],
+            'available_pdfs': run['readings'], 'candidates': list(candidates.values())[:20],
+            'events': run['events'][-16:], 'remaining': {key: limits[key] - counts[key] for key in limits},
+            'attempted_actions': sorted(attempted), 'read_outcomes': dict(read_outcomes),
+            'has_comparison': bool(run['comparison']), 'answered_questions': [a['question'] for a in run['answers']]}
+
+    def finish(reason):
+        # Research conclusions are rendered only from checked tool results.
+        partial = any(e['status'] in ('error', 'partial') for e in run['events']) or not (run['papers'] or run['comparison'] or run['answers'])
+        run.update(status='partial' if partial else 'completed',
+                   message='任务已结束，请查看实际获取的论文、证据结果及执行记录。' if not partial else
+                   '任务已结束，但部分操作失败或未获得结果；请查看缺失说明，可上传 PDF 后重试。')
+        event('finish', 'ok', reason)
+        return {'done': True}
 
     async def decide(state):
         if state.get('done'):
@@ -136,22 +154,11 @@ async def execute_run(app, run):
             return {'done': True}
         run['steps'] += 1
         event('agent', 'running', '正在选择下一步操作。')
-        context = {'date': datetime.now(timezone.utc).date().isoformat(), 'goal': run['goal'],
-            'available_pdfs': run['readings'], 'candidates': list(candidates.values())[:20],
-            'events': run['events'][-16:], 'remaining': {key: limits[key] - counts[key] for key in limits},
-            'attempted_actions': list(attempted), 'read_outcomes': read_outcomes,
-            'has_comparison': bool(run['comparison']), 'answered_questions': [a['question'] for a in run['answers']]}
-        action = ACTION.validate_python(await model.agent_decide(context, ACTION.json_schema()))
+        action = ACTION.validate_python(await model.agent_decide(context(), ACTION.json_schema()))
         if action.tool == 'search':
             action.plan = action.plan.model_copy(update={'queries': action.plan.queries[:1]})
         if action.tool == 'finish':
-            # Research conclusions are rendered only from checked tool results.
-            partial = any(e['status'] in ('error', 'partial') for e in run['events']) or not (run['papers'] or run['comparison'] or run['answers'])
-            run.update(status='partial' if partial else 'completed',
-                       message='任务已结束，请查看实际获取的论文、证据结果及执行记录。' if not partial else
-                       '任务已结束，但部分操作失败或未获得结果；请查看缺失说明，可上传 PDF 后重试。')
-            event('finish', 'ok', action.reason)
-            return {'done': True}
+            return finish(action.reason)
         return {'action': action.model_dump(mode='json'), 'done': False}
 
     async def execute(state):
@@ -214,19 +221,23 @@ async def execute_run(app, run):
             event(tool, 'error', '工具执行失败，未获得有效结果；可换用其他候选或结束。')
         return {}
 
-    graph = StateGraph(State)
-    graph.add_node('decide', decide)
-    graph.add_node('execute', execute)
-    graph.add_edge(START, 'decide')
-    graph.add_conditional_edges('decide', lambda state: 'end' if state.get('done') else 'tool',
-                                {'end': END, 'tool': 'execute'})
-    graph.add_edge('execute', 'decide')
+    if run.get('mode', 'single') == 'multi':
+        from .multi_agent import build_graph
+        graph = build_graph(model, run, context, event, execute, finish)
+    else:
+        graph = StateGraph(State)
+        graph.add_node('decide', decide)
+        graph.add_node('execute', execute)
+        graph.add_edge(START, 'decide')
+        graph.add_conditional_edges('decide', lambda state: 'end' if state.get('done') else 'tool',
+                                    {'end': END, 'tool': 'execute'})
+        graph.add_edge('execute', 'decide')
     try:
         run.update(status='running', message='正在执行研究任务。')
         persist()
         with tracing_context(enabled=False):
             async with asyncio.timeout(TOTAL_TIMEOUT):
-                await graph.compile().ainvoke({'done': False}, {'recursion_limit': 24})
+                await graph.compile().ainvoke({'done': False}, {'recursion_limit': 40})
     except asyncio.CancelledError:
         run.update(status='cancelled', message='任务已取消，已获取的论文与结果仍保留。')
     except BudgetExceeded as exc:
@@ -264,6 +275,7 @@ async def start(body: StartRun, request: Request):
     if any(doc is None or doc.kind != 'pdf' for doc in docs):
         raise HTTPException(422, '所选记录必须是已保存的 PDF。')
     run = {'id': str(uuid4()), 'goal': body.goal, 'created_at': datetime.now(timezone.utc).isoformat(),
+        'mode': body.mode,
         'status': 'queued', 'message': '任务已创建。', 'steps': 0, 'events': [], 'papers': [],
         'search_ids': [], 'readings': [{'id': doc.id, 'title': doc.title} for doc in docs],
         'comparison': None, 'answers': [], 'usage': {}}

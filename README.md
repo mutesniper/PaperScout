@@ -6,7 +6,7 @@
 
 摘要、单条问答和多篇对比结果均支持 **Markdown 导出**，保留来源、原文与页码，不增加模型调用或 Token。详细启动、停止、配置及演示步骤见 [启动与演示说明](docs/DEMO.md)。
 
-已加入三篇真实论文的固定样本验证，以及引用句子补齐修复，质量与用量记录见 [真实论文评测结果](docs/EVALUATION_RESULTS.md)。本地 MCP 工具接口已实现，搜索→PDF 导入→RAG 问答链路已由用户手动验收通过；多 Agent 和小模型微调仍在后续计划中。
+已加入三篇真实论文的固定样本验证，以及引用句子补齐修复，质量与用量记录见 [真实论文评测结果](docs/EVALUATION_RESULTS.md)。本地 MCP 工具接口已实现，搜索→PDF 导入→RAG 问答链路已由用户手动验收通过；多 Agent 可选模式已实现，保留默认单 Agent，真实模型效果对比待完成。小模型微调仍在后续计划中。
 
 固定样本评测：参见 [评测说明](docs/EVALUATION.md)。默认命令 `.\.venv\Scripts\python backend/evaluation/run.py` 不联网、不调用模型；真实模型评测需显式添加 `--live`，Embedding 需显式添加 `--semantic`。
 
@@ -235,7 +235,7 @@ EMBEDDING_MODEL=该服务支持的多语言向量模型名称
 
 支持 stdio MCP 客户端调用论文搜索、公开 PDF 导入、论文库与元数据查询、全文摘要、单篇 RAG 问答及多篇对比，共 7 个工具。适配器复用正在运行的 HTTP 后端，与网页共享该后端的数据和模型配置；模型密钥不放进 MCP 客户端。MCP 为可选依赖，不改变 Docker 镜像或网页操作。
 
-安装、客户端配置和只读连通测试见 [MCP 接入说明](docs/MCP.md)。本地协议与真实 HTTP 临时数据库联调已通过；2026-10-26，用户通过 MCP Inspector 对本地后端完成真实搜索→公开 PDF 导入→RAG 问答测试，并反馈全部成功。本次为用户手动验收，未记录耗时和 Token 用量，不代表全部工具及异常场景均已验收。多 Agent 仍为后续计划。
+安装、客户端配置和只读连通测试见 [MCP 接入说明](docs/MCP.md)。本地协议与真实 HTTP 临时数据库联调已通过；2026-10-26，用户通过 MCP Inspector 对本地后端完成真实搜索→公开 PDF 导入→RAG 问答测试，并反馈全部成功。本次为用户手动验收，未记录耗时和 Token 用量，不代表全部工具及异常场景均已验收。网页多 Agent 使用内部工具，不依赖 MCP。
 
 ### 单 Agent 研究任务
 
@@ -258,3 +258,21 @@ LangGraph 使用 `decide → execute → decide` 的条件循环。模型每步�
 接口：`POST /api/agent/runs` 接收 `{"goal":"研究目标","reading_ids":[]}` 并立即返回 202；`GET /api/agent/runs` 查看历史；`GET /api/agent/runs/{id}` 查询进度；`POST /api/agent/runs/{id}/cancel` 取消。运行结果可能为 `completed`（执行结束，需检查实际结果）、`partial`、`limited`、`failed`、`cancelled` 或 `interrupted`，不将缺失全文标作已读，不编造来源。
 
 LangGraph 执行关闭 LangSmith 外部跟踪上传，仅使用本地任务记录。图执行依据：[LangGraph 官方 Graph API](https://reference.langchain.com/python/langgraph/graph)。当前自动化测试使用模拟模型与网络响应，实际执行 LangGraph 图；真实来源网络、模型决策质量及 Embedding 联调需另行验收。
+
+### 可选多 Agent 模式
+
+“研究任务助手”的执行模式默认是 **单 Agent**，原有流程保持可用；选择 **多 Agent** 可启用协调、检索和分析三角色。使用同一套 `LLM_*`、可选 `EMBEDDING_*` 配置，不需要新密钥或依赖。
+
+LangGraph 路径为 `协调 → 检索或分析 → 工具执行 → 协调`。协调者决定下一项任务或结束；检索角色只能搜索、获取候选 PDF 或报告阻碍；分析角色只能调用证据问答、对比或报告阻碍。不同角色有独立提示词与 Pydantic 操作范围校验，共享候选、论文 ID、失败记录和简短已校验结果。已有 PDF 足够时可以直接委派分析，无需再搜索。最终结论仍来自原问答/对比工具，不使用角色自行撰写的无引用结论。
+
+所有角色串行执行，角色决策和工具模型请求共用原有 12 次生成、80 次 Embedding、300000 输入字符、10 分钟限制，不为每个角色新增预算。多 Agent 最多 18 次角色决策，单 Agent 仍最多 10 次；实际可能先达到模型请求上限。搜索 2、下载 5、对比 1、问答 2 的上限保持不变。连续两次无操作报告或连续两次重复/超额工具请求会提前停止。角色分工可能增加调用与耗时，不保证优于单 Agent。
+
+任务记录包含 `mode`（`single` / `multi`）和执行事件的 `role`。历史无 mode 时按单 Agent 展示；默认不打开历史结果。运行中不可更改该任务模式，两种模式仍共用“一次一个任务”的限制。取消、服务重启标记中断和已有结果保留机制共用；没有新增自动恢复或多 Agent 并行执行。
+
+接口仍为 `POST /api/agent/runs`，新增可选字段：
+
+```json
+{"goal":"比较这两篇论文的方法与局限","reading_ids":["论文库ID1","论文库ID2"],"mode":"multi"}
+```
+
+省略 mode 默认 single。自动化测试使用模拟外部服务、实际运行两种 LangGraph 图；真实模型下的完成率、证据质量、耗时和 Token 对比尚未验收。手动测试步骤见 [启动与演示说明](docs/DEMO.md)。

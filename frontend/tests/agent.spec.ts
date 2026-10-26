@@ -26,7 +26,7 @@ test('agent starts with selected PDFs, polls evidence results and restores histo
       { reading_id: 'p2', dimension: 'method', text: '未找到足够信息', supported: false, evidence: [] }] } }
   await page.route('**/api/agent/runs', route => {
     if (route.request().method() === 'GET') return route.fulfill({ json: saved })
-    expect(route.request().postDataJSON()).toEqual({ goal: '比较论文方法', reading_ids: ['p1', 'p2'] })
+    expect(route.request().postDataJSON()).toEqual({ goal: '比较论文方法', reading_ids: ['p1', 'p2'], mode: 'single' })
     saved = [emptyRun]; return route.fulfill({ status: 202, json: emptyRun })
   })
   await page.route('**/api/agent/runs/job1', route => { saved = [finished]; return route.fulfill({ json: finished }) })
@@ -73,4 +73,40 @@ test('agent start errors are actionable', async ({ page }) => {
   await panel.getByLabel('研究任务', { exact: true }).fill('寻找论文')
   await panel.getByRole('button', { name: '启动研究任务' }).click()
   await expect(panel.getByRole('alert')).toContainText('已有研究任务运行中')
+})
+
+test('multi-agent selection persists and role events remain visible in history', async ({ page }) => {
+  const active = { ...emptyRun, mode: 'multi', events: [
+    { role: 'coordinator', tool: 'delegate', status: 'running', message: '分配论文检索任务' },
+    { role: 'retrieval', tool: 'search', status: 'ok', message: '已找到候选论文' },
+    { role: 'analysis', tool: 'answer', status: 'ok', message: '已核对原文依据' }] }
+  const finished = { ...active, status: 'completed', message: '已结束' }
+  let saved: any[] = []
+  await page.route('**/api/agent/runs', route => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: saved })
+    expect(route.request().postDataJSON()).toEqual({ goal: '比较论文方法', reading_ids: [], mode: 'multi' })
+    saved = [active]
+    return route.fulfill({ status: 202, json: active })
+  })
+  await page.route('**/api/agent/runs/job1', route => {
+    saved = [finished]
+    return route.fulfill({ json: finished })
+  })
+  await page.goto('/')
+  const panel = page.locator('.research-agent')
+  await expect(panel.getByLabel('执行模式')).toHaveValue('single')
+  await panel.getByLabel('执行模式').selectOption('multi')
+  await panel.getByLabel('研究任务', { exact: true }).fill('比较论文方法')
+  await panel.getByRole('button', { name: '启动研究任务' }).click()
+  await expect(panel.getByLabel('执行模式')).toBeDisabled()
+  await expect(panel.getByRole('status')).toContainText('多 Agent')
+  await expect(panel.locator('li').filter({ hasText: '协调 Agent' })).toContainText('分配论文检索任务')
+  await expect(panel.locator('li').filter({ hasText: '检索 Agent' })).toContainText('已找到候选论文')
+  await expect(panel.locator('li').filter({ hasText: '分析 Agent' })).toContainText('已核对原文依据')
+  await expect(panel.getByRole('status')).toContainText('已结束')
+  await page.reload()
+  await expect(panel.locator('.agent-result')).toHaveCount(0)
+  await panel.getByLabel('研究任务历史').selectOption('job1')
+  await expect(panel.getByRole('status')).toContainText('多 Agent')
+  await expect(panel.getByLabel('执行模式')).toHaveValue('single') // New tasks still default to single.
 })

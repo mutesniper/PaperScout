@@ -37,6 +37,7 @@ def test_real_graph_comparison_and_persistent_history(tmp_path):
         identifier = start(client, ['paper', 'other'])
         result = wait(client, identifier)
         assert result['status'] == 'completed'
+        assert result['mode'] == 'single'
         assert result['steps'] == 2 and len(result['comparison']['cells']) == 2
         assert client.app.state.model.compare_papers.await_count == 1
         assert result['comparison']['cells'][0]['evidence'][0]['reading_id'] == 'paper'

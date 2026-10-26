@@ -2,7 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 type Evidence = { id: string; page: number; text: string }
 type Run = { id: string; goal: string; status: string; message: string; created_at: string;
-  events: { tool: string; status: string; message: string }[];
+  mode?: 'single' | 'multi';
+  events: { tool: string; status: string; message: string; role?: string }[];
   papers: { paper_id: string; title: string; url: string; public_pdf: boolean }[];
   readings: { id: string; title: string }[];
   comparison: null | { papers: { id: string; title: string }[]; dimensions: string[];
@@ -10,6 +11,9 @@ type Run = { id: string; goal: string; status: string; message: string; created_
   answers: { id: string; question: string; reason: string; claims: { text: string; evidence: Evidence[] }[] }[] }
 const props = defineProps<{ configured: boolean }>()
 const goal = ref(''), error = ref(''), working = ref(false), loading = ref(true), run = ref<Run | null>(null), history = ref<Run[]>([])
+const mode = ref<'single' | 'multi'>('single')
+const modes = { single: '单 Agent', multi: '多 Agent' }
+const roles: Record<string, string> = { single: '单 Agent', coordinator: '协调 Agent', retrieval: '检索 Agent', analysis: '分析 Agent' }
 const library = ref<{ id: string; title: string; kind: string }[]>([]), selected = ref<string[]>([])
 const running = computed(() => !!run.value && ['queued', 'running'].includes(run.value.status))
 const statuses: Record<string, string> = { queued: '等待执行', running: '执行中', completed: '已结束', partial: '部分完成', failed: '执行失败', limited: '达到上限', cancelled: '已取消', interrupted: '服务重启中断' }
@@ -56,7 +60,7 @@ async function start() {
   working.value = true; error.value = ''
   try {
     run.value = await api<Run>('/agent/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ goal: goal.value, reading_ids: selected.value }) })
+      body: JSON.stringify({ goal: goal.value, reading_ids: selected.value, mode: mode.value }) })
     history.value = [run.value, ...history.value].slice(0, 20); schedule()
   } catch (e) { error.value = e instanceof Error ? e.message : '任务启动失败。' }
   finally { working.value = false }
@@ -82,6 +86,8 @@ function safeURL(value: string) { return /^https?:\/\//i.test(value) ? value : u
     <h2 id="agent-heading">研究任务助手</h2>
     <p class="help">描述目标，助手会选择搜索、获取公开论文、证据问答或对比。可能多次调用你配置的模型；首次向量索引也会调用 Embedding 服务。</p>
     <form @submit.prevent="start">
+      <label>执行模式<select v-model="mode" :disabled="running || working"><option value="single">单 Agent（默认）</option><option value="multi">多 Agent（协调、检索、分析）</option></select></label>
+      <p class="help">{{ mode === 'single' ? '一个 Agent 选择并调用工具，适合直接检索、问答和对比。' : '协调 Agent 分配任务，检索与分析 Agent 分别选择工具。角色按需串行执行，共用任务额度；可能增加耗时和模型调用。' }}</p>
       <label>研究任务<textarea v-model="goal" rows="3" maxlength="3000" :disabled="running || working" placeholder="帮我找小模型调用工具的论文，选三篇并比较它们的方法。" /></label>
       <details><summary @click="refreshLibrary">使用已上传的 PDF（可选，最多 5 篇）</summary>
         <p v-if="!library.some(p => p.kind === 'pdf')" class="help">可先在下方上传 PDF，再展开这里刷新列表。</p>
@@ -92,10 +98,10 @@ function safeURL(value: string) { return /^https?:\/\//i.test(value) ? value : u
     <p class="help">刷新页面后，选择历史任务可查看进度。任务最多运行 10 分钟；无法获取的全文会明确说明。</p>
     <p v-if="!configured" class="help">请先配置云端模型。</p>
     <p v-if="error" class="message error" role="alert">{{ error }}</p>
-    <label v-if="history.length">研究任务历史<select :value="run?.id ?? ''" :disabled="running || working" @change="open(($event.target as HTMLSelectElement).value)"><option value="">选择历史研究任务</option><option v-for="item in history" :key="item.id" :value="item.id">{{ item.goal }}</option></select></label>
+    <label v-if="history.length">研究任务历史<select :value="run?.id ?? ''" :disabled="running || working" @change="open(($event.target as HTMLSelectElement).value)"><option value="">选择历史研究任务</option><option v-for="item in history" :key="item.id" :value="item.id">{{ modes[item.mode ?? 'single'] }} · {{ item.goal }}</option></select></label>
     <article v-if="run" class="agent-result">
-      <h3>{{ run.goal }}</h3><p role="status">{{ statuses[run.status] ?? run.status }} · {{ run.message }}</p>
-      <details open><summary>执行记录</summary><ol><li v-for="(event, index) in run.events" :key="index" :class="{ warning: event.status === 'error' || event.status === 'partial' }">{{ event.message }}</li></ol></details>
+      <h3>{{ run.goal }}</h3><p role="status">{{ modes[run.mode ?? 'single'] }} · {{ statuses[run.status] ?? run.status }} · {{ run.message }}</p>
+      <details open><summary>执行记录</summary><ol><li v-for="(event, index) in run.events" :key="index" :class="{ warning: event.status === 'error' || event.status === 'partial' }"><strong v-if="event.role">{{ roles[event.role] ?? event.role }} · </strong>{{ event.message }}</li></ol></details>
       <div v-if="run.papers.length"><h4>检索到的候选论文</h4><ul><li v-for="paper in run.papers" :key="paper.paper_id"><a :href="safeURL(paper.url)" target="_blank" rel="noopener noreferrer">{{ paper.title }}</a> · {{ paper.public_pdf ? '提供公开全文链接' : '未提供公开全文链接' }}</li></ul></div>
       <div v-if="run.readings.length"><h4>本任务可阅读的 PDF</h4><ul><li v-for="paper in run.readings" :key="paper.id">{{ paper.title }}</li></ul></div>
       <div v-for="answer in run.answers" :key="answer.id"><h4>{{ answer.question }}</h4><p v-if="answer.reason">{{ answer.reason }}</p><div v-for="(claim, index) in answer.claims" :key="index"><p>{{ claim.text }}</p><details><summary>查看问答依据</summary><blockquote v-for="e in claim.evidence" :key="e.id"><small>PDF 第 {{ e.page }} 页</small><p>{{ e.text }}</p></blockquote></details></div></div>
