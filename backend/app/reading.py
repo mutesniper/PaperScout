@@ -273,7 +273,17 @@ async def summarize(reading_id: str, request: Request):
     except (ValueError, KeyError, TypeError, IndexError, ValidationError) as exc:
         reason = str(exc) if type(exc) is ValueError else ''
         code = 'truncated' if reason == 'truncated summary' else 'evidence' if reason == 'unverifiable evidence' else 'format'
-        logging.getLogger('paperscout').warning('document_summary reading_id=%s code=%s', reading_id, code)
+        # Log only schema paths/error categories, never provider text or source input.
+        fields = []
+        if isinstance(exc, ValidationError):
+            fields = [{ 'path': '.'.join(str(p) for p in error['loc']), 'type': error['type'] }
+                      for error in exc.errors(include_input=False, include_url=False)]
+        known = {'invalid summary format', 'invalid evidence format', 'invalid evidence IDs',
+                 'unknown evidence ID', 'evidence too short', 'empty document',
+                 'truncated summary', 'unverifiable evidence', 'invalid summary content'}
+        detail = reason if reason in known else type(exc).__name__
+        logging.getLogger('paperscout').warning('document_summary reading_id=%s code=%s detail=%s fields=%s',
+            reading_id, code, detail, fields)
         message = {
             'truncated': '模型回复达到输出上限，已停止且未自动重试，避免重复消耗。请检查模型思考模式或输出额度后重试；未保存不完整摘要。',
             'evidence': '模型引用的原句或页码与提取文本不匹配，请重新生成；未保存未经校验的摘要。',

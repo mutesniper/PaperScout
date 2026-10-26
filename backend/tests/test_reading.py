@@ -68,7 +68,7 @@ def test_invalid_encrypted_and_scanned_pdf(data, match):
         parse_pdf(data)
 
 
-def test_upload_persistence_original_and_summary_evidence(tmp_path):
+def test_upload_persistence_original_and_summary_evidence(tmp_path, caplog):
     path = tmp_path / 'reading.db'
     with TestClient(create_app(path)) as client:
         original = pdf_bytes()
@@ -93,6 +93,11 @@ def test_upload_persistence_original_and_summary_evidence(tmp_path):
         assert 'Our system' in str(material)
         model.summarize_document = AsyncMock(return_value={**good, 'evidence': [{'page': 2, 'quote': 'Invented experimental evidence.'}]})
         assert client.post(prefix + '/summary').status_code == 502
+        assert client.get(prefix).json()['document_summary']['abstract'] == good['abstract']
+        model.summarize_document = AsyncMock(return_value={**good, 'abstract': {'private-text': 'must-not-appear-in-log'}})
+        assert client.post(prefix + '/summary').status_code == 502
+        assert "'path': 'abstract'" in caplog.text and 'string_type' in caplog.text
+        assert 'must-not-appear-in-log' not in caplog.text
         assert client.get(prefix).json()['document_summary']['abstract'] == good['abstract']
         assert client.post(prefix + '/sections/s1/summary').status_code == 404
     with TestClient(create_app(path)) as client:
