@@ -2,7 +2,7 @@
 from typing import Annotated, Literal, TypedDict
 from pydantic import Field, TypeAdapter
 from langgraph.graph import StateGraph, START, END
-from .agent import Action, SearchAction, ReadAction, CompareAction, AnswerAction, FinishAction, action_schema, parse_action
+from .tools.schemas import Action, SearchAction, ReadAction, CompareAction, AnswerAction, FinishAction, action_schema, parse_action
 
 MAX_DECISIONS = 18
 

@@ -34,6 +34,9 @@ flowchart LR
 | `retrieval.py` / `qa.py` | 文本片段、关键词 / 向量检索与单篇证据问答 |
 | `comparison.py` | 多篇论文按维度检索、生成与证据校验 |
 | `agent.py` / `multi_agent.py` | 单 Agent 工具循环与多角色协调图 |
+| `tools/schemas.py` | 单/多 Agent 共用的工具参数、动作解析和动态 schema |
+| `tools/search.py` | Agent 的 arXiv 优先搜索、简化查询和补充来源策略 |
+| `tools/executor.py` | 工具执行入口、任务内论文 ID 校验、结果与失败记录 |
 | `agent_budget.py` | 跨角色、跨工具共用调用预算 |
 | `storage.py` | 检索、论文、摘要、问答、对比、任务和缓存持久化 |
 | `backend/mcp_server.py` / `mcp_smoke.py` | 可选 MCP 接口与冒烟验证 |
@@ -71,3 +74,18 @@ flowchart LR
 ## 文档分工
 
 首页只保留项目介绍和启动入口；`USAGE.md` 维护功能规则，`CONFIGURATION.md` 维护配置，`DEVELOPMENT.md` 维护验证命令。`PLAN.md` 记录计划，`PROGRESS.md` 记录变更，评测结果文档保留实验条件与局限。
+
+
+## Agent 工具层
+
+```text
+backend/app/tools/
+├── __init__.py    # 公共执行器与 schema 入口
+├── schemas.py     # search / download_pdf / answer / compare / finish
+├── search.py      # 有界来源搜索策略
+└── executor.py    # 单/多 Agent 共用执行器
+```
+
+`agent.py` 负责运行生命周期、预算、重复操作限制与调度；`multi_agent.py` 负责角色交接。`ToolExecutor` 每个任务独立创建，持有本任务的候选和下载结果，执行前校验论文 ID 范围，再复用 `reading.py`、`qa.py`、`comparison.py` 的业务服务。没有复制下载、RAG 或证据校验实现。
+
+工具动作字段、历史记录格式和 HTTP API 不变；旧 `read` 动作仍由解析器兼容为 `download_pdf`。MCP 继续通过 HTTP 封装业务能力，不依赖内部 Agent 状态。工具调用次数与重复请求检查保留在调度层，避免单/多角色分别产生额度。

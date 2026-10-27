@@ -54,7 +54,7 @@ def test_search_download_failure_then_replan_finish(tmp_path, monkeypatch):
             sources=[SourceResult(source='arxiv', status='ok', count=1)])
         client.app.state.collect_search = AsyncMock(return_value=search)
         download = AsyncMock(side_effect=HTTPException(502, '公开 PDF 获取失败，可上传。'))
-        monkeypatch.setattr('app.agent.import_paper', download)
+        monkeypatch.setattr('app.tools.executor.import_paper', download)
         client.app.state.model.agent_decide = AsyncMock(side_effect=[
             {'tool': 'search', 'reason': '搜索工具调用论文', 'plan': {'queries': ['small models tools']}},
             {'tool': 'read', 'reason': '获取候选全文', 'paper_id': 'one'},
@@ -88,7 +88,7 @@ def test_failed_read_is_explicit_in_next_decision_and_repetition_stops(tmp_path,
             sources=[SourceResult(source='arxiv', status='ok', count=1)])
         client.app.state.collect_search = AsyncMock(return_value=search)
         download = AsyncMock(side_effect=HTTPException(502, 'Fake-IP 网络阻止下载'))
-        monkeypatch.setattr('app.agent.import_paper', download)
+        monkeypatch.setattr('app.tools.executor.import_paper', download)
         decisions = []
         async def choose(context, schema):
             decisions.append(context)
@@ -175,7 +175,7 @@ def test_search_read_then_evidence_answer(tmp_path, monkeypatch):
             doc = document('downloaded')
             request.app.state.store.save_reading(doc)
             return doc
-        monkeypatch.setattr('app.agent.import_paper', imported)
+        monkeypatch.setattr('app.tools.executor.import_paper', imported)
         client.app.state.model.agent_decide = AsyncMock(side_effect=[
             {'tool': 'search', 'reason': '搜索', 'plan': {'queries': ['tool calling']}},
             {'tool': 'read', 'reason': '阅读', 'paper_id': 'one'},
@@ -190,7 +190,7 @@ def test_model_decision_request_has_budget_and_no_extra_retries(monkeypatch):
     import json
     import httpx
     from app.models import CloudModel
-    from app.agent import ACTION
+    from app.tools.schemas import ACTION
     async def check():
         budget = Budget()
         token = current_budget.set(budget)
@@ -218,7 +218,7 @@ def test_model_decision_request_has_budget_and_no_extra_retries(monkeypatch):
     (6, False, False, True), (5, True, True, True)])
 def test_arxiv_first_search_policy(count, public, failed, fallback):
     from types import SimpleNamespace
-    from app.agent import search_arxiv_first
+    from app.tools.search import search_arxiv_first
     async def check():
         calls, events = [], []
         async def collect(body):
@@ -250,7 +250,7 @@ def test_arxiv_first_search_policy(count, public, failed, fallback):
 
 def test_semantic_failure_preserves_arxiv_results():
     from types import SimpleNamespace
-    from app.agent import search_arxiv_first
+    from app.tools.search import search_arxiv_first
     async def check():
         async def collect(body):
             source = body.sources[0]
@@ -269,7 +269,7 @@ def test_existing_pdf_download_is_corrected_then_answered(tmp_path, monkeypatch,
     with TestClient(create_app(tmp_path / 'db')) as client:
         prepare(client)
         download = AsyncMock(side_effect=AssertionError('Existing PDF must not be downloaded'))
-        monkeypatch.setattr('app.agent.import_paper', download)
+        monkeypatch.setattr('app.tools.executor.import_paper', download)
         contexts = []
         async def choose(context, schema):
             contexts.append(context)
@@ -298,7 +298,7 @@ def test_repeated_existing_pdf_download_corrections_are_bounded(tmp_path, monkey
     with TestClient(create_app(tmp_path / 'db')) as client:
         prepare(client)
         download = AsyncMock()
-        monkeypatch.setattr('app.agent.import_paper', download)
+        monkeypatch.setattr('app.tools.executor.import_paper', download)
         client.app.state.model.agent_decide = AsyncMock(return_value={
             'tool': 'download_pdf', 'paper_id': 'paper', 'reason': '读取'})
         result = wait(client, start(client, ['paper']))
@@ -314,7 +314,7 @@ def test_download_only_advertised_for_unattempted_public_candidates(tmp_path, mo
             sources=[SourceResult(source='arxiv', status='ok', count=1)])
         client.app.state.collect_search = AsyncMock(return_value=search)
         download = AsyncMock(side_effect=HTTPException(502, '下载失败'))
-        monkeypatch.setattr('app.agent.import_paper', download)
+        monkeypatch.setattr('app.tools.executor.import_paper', download)
         calls = []
         async def choose(context, schema):
             allowed = schema['discriminator']['mapping']
@@ -365,7 +365,7 @@ def test_title_empty_search_simplifies_and_skips_secondary(tmp_path, mode):
 
 def test_arxiv_error_does_not_trigger_simplification():
     from types import SimpleNamespace
-    from app.agent import search_arxiv_first
+    from app.tools.search import search_arxiv_first
     calls = []
     async def collect(body):
         calls.append(body)

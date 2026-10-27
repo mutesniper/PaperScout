@@ -78,6 +78,7 @@ npm run dev
 PaperScout/
 ├── backend/
 │   ├── app/                 # API、来源、模型、RAG 与 Agent 编排
+│   │   └── tools/           # Agent 动作定义、搜索策略与统一执行入口
 │   ├── evaluation/          # 固定样本、真实论文准备与评测入口
 │   ├── tests/               # 后端测试与真实来源冒烟脚本
 │   ├── mcp_server.py        # MCP stdio 服务

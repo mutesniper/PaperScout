@@ -36,7 +36,7 @@ def test_three_roles_search_read_answer_and_persistence(tmp_path, monkeypatch):
             doc = document('downloaded')
             request.app.state.store.save_reading(doc)
             return doc
-        monkeypatch.setattr('app.agent.import_paper', imported)
+        monkeypatch.setattr('app.tools.executor.import_paper', imported)
         choices = iter([
             ('coordinator', delegate('retrieval')),
             ('retrieval', {'tool': 'search', 'reason': '查找论文', 'plan': {'queries': ['tools', 'ignored']}}),
@@ -118,7 +118,7 @@ def test_download_error_handed_to_coordinator_and_budget_shared(tmp_path, monkey
             papers=[paper(fulltext_url='https://example.org/a.pdf', access='open_fulltext')],
             sources=[SourceResult(source='arxiv', status='ok', count=1)])
         client.app.state.collect_search = AsyncMock(return_value=search)
-        monkeypatch.setattr('app.agent.import_paper', AsyncMock(side_effect=HTTPException(502, 'Fake-IP')))
+        monkeypatch.setattr('app.tools.executor.import_paper', AsyncMock(side_effect=HTTPException(502, 'Fake-IP')))
         client.app.state.model.agent_role_decide = AsyncMock(side_effect=[delegate('retrieval'),
             {'tool': 'search', 'reason': '搜索', 'plan': {'queries': ['tools']}}, delegate('retrieval'),
             {'tool': 'read', 'reason': '下载', 'paper_id': 'one'}, {'tool': 'finish', 'reason': '下载受阻'}])
