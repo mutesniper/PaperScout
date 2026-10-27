@@ -199,3 +199,25 @@ test('comparison can be cancelled or fail without losing prior result', async ({
   await panel.getByRole('button', { name: '取消对比', exact: true }).click()
   await expect(panel.getByRole('status')).toContainText('已取消对比')
 })
+
+test('PDF pickers deduplicate content while preserving distinct same-title papers', async ({ page }) => {
+  await page.route('**/api/readings', route => route.fulfill({ json: [
+    { ...doc, id: 'new', content_key: 'same' },
+    { ...doc, id: 'old', content_key: 'same' },
+    { ...doc, id: 'different', content_key: 'different' },
+  ] }))
+  await page.goto('/')
+  const comparison = page.getByRole('region', { name: '多篇论文对比', exact: true })
+  await expect(comparison.getByRole('checkbox', { name: doc.title, exact: true })).toHaveCount(2)
+  await expect(comparison.locator('input[value="new"]')).toHaveCount(1)
+  await expect(comparison.locator('input[value="old"]')).toHaveCount(0)
+  await page.getByText('使用已上传的 PDF（可选，最多 5 篇）', { exact: true }).click()
+  const agent = page.getByRole('region', { name: '研究任务助手', exact: true })
+  await expect(agent.getByRole('checkbox', { name: doc.title, exact: true })).toHaveCount(2)
+  // Full history remains available, including the older reading ID.
+  await expect(page.getByLabel('最近摘要').locator('option[value="old"]')).toHaveCount(1)
+  const field = agent.getByLabel('执行模式')
+  const selectBounds = await field.boundingBox()
+  const labelBounds = await agent.locator('.agent-field > span').first().boundingBox()
+  expect(selectBounds!.y).toBeGreaterThan(labelBounds!.y + labelBounds!.height)
+})

@@ -1,3 +1,4 @@
+import hashlib
 import json
 import sqlite3
 from contextlib import contextmanager
@@ -77,8 +78,20 @@ class Store:
     def reading_history(self):
         with self.connect() as db:
             rows = db.execute('SELECT payload FROM readings ORDER BY created_at DESC LIMIT 50').fetchall()
-        return [{**{k: data[k] for k in ('id', 'title', 'kind', 'created_at', 'page_count')}, 'source_url': data.get('source_url')}
-                for (value,) in rows for data in [json.loads(value)]]
+        result = []
+        for (value,) in rows:
+            data = json.loads(value)
+            # Content identity for selection lists, not title matching or history deletion.
+            pages = {}
+            for section in data.get('sections', []):
+                for fragment in section.get('fragments', []):
+                    page = fragment['page']
+                    pages[page] = pages.get(page, '') + ' ' + fragment['text']
+            content = [(page, ' '.join(text.split())) for page, text in sorted(pages.items())]
+            fingerprint = hashlib.sha256(json.dumps([data['kind'], content], ensure_ascii=False).encode()).hexdigest() if content else None
+            result.append({**{k: data[k] for k in ('id', 'title', 'kind', 'created_at', 'page_count')},
+                           'source_url': data.get('source_url'), 'content_key': fingerprint})
+        return result
 
     def save_summary(self, reading_id, summary: Summary):
         with self.connect() as db:

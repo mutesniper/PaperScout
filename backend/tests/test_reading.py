@@ -347,3 +347,20 @@ def test_download_retry_preserves_outer_deadline(monkeypatch):
     with pytest.raises(TimeoutError):
         asyncio.run(check())
     assert download.await_count == 1
+
+def test_library_content_identity_preserves_history_and_different_documents(tmp_path):
+    from app.storage import Store
+    from app.reading_schemas import Reading
+    store = Store(tmp_path / 'identity.db')
+    def save(identifier, text, title):
+        store.save_reading(Reading(id=identifier, title=title, kind='pdf', origin='upload',
+            created_at='2026-10-27T00:00:00Z', page_count=1,
+            sections=[Section(id='s1', title='Intro', fragments=[Fragment(page=1, text=text)])]))
+    save('first', 'Same paper content.', 'Paper')
+    save('copy', 'Same  paper content.', 'Renamed.pdf')
+    save('different', 'Different paper content.', 'Paper')
+    rows = {r['id']: r for r in store.reading_history()}
+    assert len(rows) == 3
+    assert rows['first']['content_key'] == rows['copy']['content_key']
+    assert rows['first']['content_key'] != rows['different']['content_key']
+    assert store.reading('copy').title == 'Renamed.pdf'

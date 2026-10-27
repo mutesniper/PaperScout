@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { uniquePDFs } from './library'
 import { comparisonMarkdown, downloadMarkdown } from './markdown'
-type Paper = { id: string; title: string; kind: string }
+type Paper = { id: string; title: string; kind: string; content_key?: string | null }
 type Evidence = { id: string; page: number; text: string }
 type Cell = { reading_id: string; dimension: string; supported: boolean; text: string; evidence: Evidence[] }
 type Result = { id: string; created_at: string; papers: { id: string; title: string }[]; dimensions: string[]; cells: Cell[] }
 const props = defineProps<{ library: Paper[]; configured: boolean; disabled: boolean }>()
 const labels: Record<string, string> = { goal: '研究目标', method: '方法', experiments: '实验设置', results: '实验结果', limitations: '局限' }
-const papers = computed(() => props.library.filter(p => p.kind === 'pdf'))
+const papers = computed(() => uniquePDFs(props.library, selected.value))
 const selected = ref<string[]>([]), dimensions = ref(['goal', 'method', 'limitations'])
 const history = ref<Result[]>([]), result = ref<Result | null>(null)
 const busy = ref(false), error = ref(''), notice = ref('')
