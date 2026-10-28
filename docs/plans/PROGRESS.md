@@ -1,5 +1,12 @@
 # 开发进度
 
+## 2026-10-28：本地微调路由完成网页真实单例验收
+
+- 用户执行 TinyAgent 搜索、公开PDF获取及证据问答，并反馈验收成功。只读核对最新任务 `2beba51a-3714-481f-bfaf-ade319079b32`：单Agent、本地 `paperscout-router-v1.0.0`，四步为search、download_pdf、answer、finish，状态completed。
+- 耗时20.74秒，本地路由4次、生成调用5次、Embedding调用9次；调用数为预算计数，实际Token未知。成功运行搜索命中arXiv缓存，PDF实际下载并解析为9页，回答由云端生成并采用语义检索。
+- 4条结论的6处引用全部匹配所属PDF页原文，主要机制陈述有依据；回答注明planner调用序列的执行细节未完整展开。记录为基础流程单例验收，不视为独立盲审或稳定成功率。
+- 同步README、使用说明、评测导航和计划状态，原始核对快照存于忽略目录 `outputs/evaluation/local-router-acceptance-20261028/report.json`。本次仅核对与更新文档，没有新增模型调用、修改业务代码或切换适配器；[详细记录](../evaluation/AGENT_EVALUATION_RESULTS.md)。
+
 ## 2026-10-28：独立发布第四组实验候选
 
 - 发布[router-v1.1.0-experimental.1](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.1.0-experimental.1)，标记为预发布且不设为Latest，保留当前默认v1.0.0。
