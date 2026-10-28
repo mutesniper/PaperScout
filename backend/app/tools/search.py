@@ -1,8 +1,8 @@
 """Agent search policy; manual search remains in the HTTP service."""
 import re
-from ..schemas import SearchRequest
-from ..providers import deduplicate
-from ..ranking import rank_candidates
+from app.schemas import SearchRequest
+from app.search.providers import deduplicate
+from app.search.ranking import rank_candidates
 
 ARXIV_CANDIDATE_TARGET = 5
 

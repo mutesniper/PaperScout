@@ -1,0 +1,12 @@
+{
+  "method": "normalized_goal_bigram_jaccard",
+  "threshold": 0.3,
+  "input_sha256": {
+    "targeted": "3c225a394a7d97f7369776f10a3e28c1f1d705294ee5a1b11424f1cdff71c9c3",
+    "validation": "492e95fa5a14246268681aafdd4bddd3f1bc670d341c08f0b1631389e3748d8c",
+    "test_candidate": "292078ca8a08f6cc163f4ab0da351dad13ddfc72f8c4f3fb170fc3cb6690c02d"
+  },
+  "pairs": [],
+  "limitation": "Lexical screening only; not proof of semantic independence. Independent review pending.",
+  "model_calls": 0
+}

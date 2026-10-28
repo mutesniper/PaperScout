@@ -6,10 +6,10 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from app.main import create_app
-from app.models import CloudModel
-from app.providers import deduplicate, parse_arxiv, parse_semantic, Sources
+from app.llm.client import CloudModel
+from app.search.providers import deduplicate, parse_arxiv, parse_semantic, Sources
 from app.schemas import Plan, Paper
-from app.providers import with_preprint_link
+from app.search.providers import with_preprint_link
 
 
 def test_missing_semantic_pdf_recovered_from_arxiv_metadata():

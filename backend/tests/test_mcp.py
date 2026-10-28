@@ -120,7 +120,7 @@ def test_stdio_to_real_http_backend(tmp_path):
     import subprocess
     import time
     from app.storage import Store
-    from app.reading_schemas import Reading
+    from app.papers.schemas import Reading
 
     db = tmp_path / 'test.db'
     Store(db).save_reading(Reading(id='fixture', title='测试论文', kind='pdf', origin='upload',

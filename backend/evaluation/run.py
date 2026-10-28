@@ -18,10 +18,10 @@ from pydantic import BaseModel, Field, model_validator
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'backend'))
-from app.models import CloudModel
-from app.qa import Question, ask
-from app.reading_schemas import Reading
-from app.retrieval import CloudEmbedding, chunks_for, retrieve
+from app.llm.client import CloudModel
+from app.rag.qa import Question, ask
+from app.papers.schemas import Reading
+from app.rag.retrieval import CloudEmbedding, chunks_for, retrieve
 from app.storage import Store
 
 

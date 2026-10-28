@@ -2,7 +2,7 @@
 import asyncio
 import json
 import httpx
-from app.reading import download_pdf, extract_pdf
+from app.papers.service import download_pdf, extract_pdf
 
 
 async def main():

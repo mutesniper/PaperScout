@@ -1,0 +1,3 @@
+-r requirements-inference.txt
+peft==0.15.2
+# A bounded PyTorch + PEFT loop is sufficient for this SFT smoke; no TRL yet.

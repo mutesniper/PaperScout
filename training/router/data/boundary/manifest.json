@@ -1,0 +1,21 @@
+{
+  "total_rows": 168,
+  "added_rows": 36,
+  "prior_labels_changed": 0,
+  "class_counts": {
+    "answer": 29,
+    "compare": 26,
+    "search": 27,
+    "finish": 28,
+    "download_pdf": 28,
+    "clarify": 30
+  },
+  "train_sha256": "5da800f5d6c41299e6f55a1beb2be32b08117505c7b620c29b6c4681a5c29366",
+  "holdout_hashes": {
+    "validation": "492e95fa5a14246268681aafdd4bddd3f1bc670d341c08f0b1631389e3748d8c",
+    "test_candidate": "292078ca8a08f6cc163f4ab0da351dad13ddfc72f8c4f3fb170fc3cb6690c02d"
+  },
+  "independent_review": "pending",
+  "near_pairs": [],
+  "near_check_limitation": "Lexical screening only; validation-informed development, not independent evaluation."
+}

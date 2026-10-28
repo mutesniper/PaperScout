@@ -8,11 +8,11 @@ from fastapi.testclient import TestClient
 from pypdf import PdfWriter
 from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject
 from app.main import create_app
-from app.models import CloudModel
-from app.pdf_worker import parse_pdf, sections_from_pages
-from app.reading import download_pdf, public_address
-from app.reading import wait_operation
-from app.reading_schemas import Section, Fragment
+from app.llm.client import CloudModel
+from app.papers.pdf_worker import parse_pdf, sections_from_pages
+from app.papers.service import download_pdf, public_address
+from app.papers.service import wait_operation
+from app.papers.schemas import Section, Fragment
 from app.schemas import SearchResult
 
 
@@ -125,7 +125,7 @@ def test_abstract_is_explicit_and_model_is_optional(tmp_path):
 
 def test_public_import_retains_source_and_failure_does_not_claim_paywall(tmp_path, monkeypatch):
     download = AsyncMock(return_value=(pdf_bytes(), 'https://arxiv.org/pdf/1234.5678'))
-    monkeypatch.setattr('app.reading.download_pdf', download)
+    monkeypatch.setattr('app.papers.service.download_pdf', download)
     with TestClient(create_app(tmp_path / 'db')) as client:
         body = {**saved_search(client), 'mode': 'pdf'}
         result = client.post('/api/readings/import', json=body)
@@ -146,7 +146,7 @@ def test_download_blocks_non_public_targets(url):
 
 
 def test_fake_ip_has_specific_diagnostic_and_no_request(tmp_path, monkeypatch):
-    from app.reading import DownloadAddressError
+    from app.papers.service import DownloadAddressError
     async def check():
         loop = asyncio.get_running_loop()
         async def resolve(*args, **kwargs):
@@ -155,7 +155,7 @@ def test_fake_ip_has_specific_diagnostic_and_no_request(tmp_path, monkeypatch):
         with pytest.raises(DownloadAddressError, match='Fake-IP'):
             await public_address('https://arxiv.org/pdf/2510.03847')
     asyncio.run(check())
-    monkeypatch.setattr('app.reading.download_pdf', AsyncMock(side_effect=DownloadAddressError('Fake-IP DNS 配置问题')))
+    monkeypatch.setattr('app.papers.service.download_pdf', AsyncMock(side_effect=DownloadAddressError('Fake-IP DNS 配置问题')))
     with TestClient(create_app(tmp_path / 'db')) as client:
         response = client.post('/api/readings/import', json={**saved_search(client), 'mode': 'pdf'})
         assert response.status_code == 502
@@ -168,7 +168,7 @@ def test_download_pins_dns_checks_redirect_and_size(monkeypatch):
         if 'private' in url:
             raise ValueError('private')
         return 'papers.test', '93.184.216.34'
-    monkeypatch.setattr('app.reading.public_address', address)
+    monkeypatch.setattr('app.papers.service.public_address', address)
     async def check():
         def handler(request):
             seen.append(request)
@@ -222,8 +222,8 @@ def test_disconnected_reading_request_cancels_operation():
 
 
 def test_long_document_uses_all_fragments_and_synthesizes_once():
-    from app.reading import build_document_summary
-    from app.reading_schemas import Reading
+    from app.papers.service import build_document_summary
+    from app.papers.schemas import Reading
     async def check():
         fragments = [Fragment(page=i + 1, text=(f'Evidence for part {i}. ' * 500)) for i in range(6)]
         doc = Reading(id='long', title='Long', kind='pdf', origin='upload', created_at='now', page_count=6,
@@ -269,7 +269,7 @@ def test_summary_truncation_does_not_repeat_or_increase_spend(monkeypatch):
 
 
 def test_verified_long_quote_shortened_but_invented_suffix_not_hidden():
-    from app.reading import normalize_summary_evidence
+    from app.papers.service import normalize_summary_evidence
     text = 'Actual source sentence. ' * 40
     fragments = [Fragment(page=1, text=text)]
     original = {'points': [{'text': 'summary', 'evidence': [{'page': 1, 'quote': text}]}]}
@@ -293,8 +293,8 @@ def test_model_evidence_ids_resolve_original_text_and_reject_invented_ids():
 
 
 def test_medium_paper_uses_single_call_without_omitting_text():
-    from app.reading import build_document_summary
-    from app.reading_schemas import Reading
+    from app.papers.service import build_document_summary
+    from app.papers.schemas import Reading
     async def check():
         text = 'Actual source evidence. ' * 1300
         doc = Reading(id='medium', title='Medium', kind='pdf', origin='upload', created_at='now', page_count=1,
@@ -310,17 +310,17 @@ def test_medium_paper_uses_single_call_without_omitting_text():
 
 @pytest.mark.parametrize('error', [httpx.ReadTimeout('timeout'), TimeoutError()])
 def test_download_timeout_retries_once(monkeypatch, error):
-    from app.reading import download_with_retry
+    from app.papers.service import download_with_retry
     download = AsyncMock(side_effect=[error, (b'%PDF-ok', 'https://example.org/p.pdf')])
-    monkeypatch.setattr('app.reading.download_pdf', download)
+    monkeypatch.setattr('app.papers.service.download_pdf', download)
     result = asyncio.run(download_with_retry('https://example.org/p.pdf', None))
     assert result[0] == b'%PDF-ok' and download.await_count == 2
 
 
 def test_download_repeated_timeout_stops(monkeypatch):
-    from app.reading import download_with_retry
+    from app.papers.service import download_with_retry
     download = AsyncMock(side_effect=httpx.ReadTimeout('timeout'))
-    monkeypatch.setattr('app.reading.download_pdf', download)
+    monkeypatch.setattr('app.papers.service.download_pdf', download)
     with pytest.raises(httpx.ReadTimeout):
         asyncio.run(download_with_retry('https://example.org/p.pdf', None))
     assert download.await_count == 2
@@ -329,18 +329,18 @@ def test_download_repeated_timeout_stops(monkeypatch):
 @pytest.mark.parametrize('error', [ValueError('not PDF'), asyncio.CancelledError(),
     httpx.HTTPStatusError('forbidden', request=httpx.Request('GET', 'https://example.org'), response=httpx.Response(403))])
 def test_download_non_timeout_not_retried(monkeypatch, error):
-    from app.reading import download_with_retry
+    from app.papers.service import download_with_retry
     download = AsyncMock(side_effect=error)
-    monkeypatch.setattr('app.reading.download_pdf', download)
+    monkeypatch.setattr('app.papers.service.download_pdf', download)
     with pytest.raises(type(error)):
         asyncio.run(download_with_retry('https://example.org/p.pdf', None))
     assert download.await_count == 1
 
 
 def test_download_retry_preserves_outer_deadline(monkeypatch):
-    from app.reading import download_with_retry
+    from app.papers.service import download_with_retry
     download = AsyncMock(side_effect=httpx.ReadTimeout('timeout'))
-    monkeypatch.setattr('app.reading.download_pdf', download)
+    monkeypatch.setattr('app.papers.service.download_pdf', download)
     async def check():
         async with asyncio.timeout(.01):
             await download_with_retry('https://example.org/p.pdf', None)
@@ -350,7 +350,7 @@ def test_download_retry_preserves_outer_deadline(monkeypatch):
 
 def test_library_content_identity_preserves_history_and_different_documents(tmp_path):
     from app.storage import Store
-    from app.reading_schemas import Reading
+    from app.papers.schemas import Reading
     store = Store(tmp_path / 'identity.db')
     def save(identifier, text, title):
         store.save_reading(Reading(id=identifier, title=title, kind='pdf', origin='upload',

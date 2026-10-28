@@ -1,4 +1,4 @@
-from app.retrieval import chunks_for, readable_evidence, MAX_EVIDENCE_CHARS
+from app.rag.retrieval import chunks_for, readable_evidence, MAX_EVIDENCE_CHARS
 from test_qa import document
 
 

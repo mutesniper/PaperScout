@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { uniquePDFs } from './library'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 type Evidence = { id: string; page: number; text: string }
 type Run = { id: string; goal: string; status: string; message: string; created_at: string;
   mode?: 'single' | 'multi';
+  router_mode?: 'cloud' | 'local'; clarification?: string;
   events: { tool: string; status: string; message: string; role?: string }[];
   papers: { paper_id: string; title: string; url: string; public_pdf: boolean }[];
   readings: { id: string; title: string }[];
@@ -13,12 +14,16 @@ type Run = { id: string; goal: string; status: string; message: string; created_
 const props = defineProps<{ configured: boolean }>()
 const goal = ref(''), error = ref(''), working = ref(false), loading = ref(true), run = ref<Run | null>(null), history = ref<Run[]>([])
 const mode = ref<'single' | 'multi'>('single')
+const routerMode = ref<'cloud' | 'local'>('cloud'), replyText = ref('')
+watch(mode, value => { if (value === 'multi') routerMode.value = 'cloud' })
+const routerLabel = (item: Run) => item.router_mode === 'local' ? '本地微调路由' : '云端路由'
 const modes = { single: '单 Agent', multi: '多 Agent' }
 const roles: Record<string, string> = { single: '单 Agent', coordinator: '协调 Agent', retrieval: '检索 Agent', analysis: '分析 Agent' }
 const library = ref<{ id: string; title: string; kind: string; content_key?: string | null }[]>([]), selected = ref<string[]>([])
 const selectablePapers = computed(() => uniquePDFs(library.value, selected.value))
 const running = computed(() => !!run.value && ['queued', 'running'].includes(run.value.status))
-const statuses: Record<string, string> = { queued: '等待执行', running: '执行中', completed: '已结束', partial: '部分完成', failed: '执行失败', limited: '达到上限', cancelled: '已取消', interrupted: '服务重启中断' }
+const waiting = computed(() => run.value?.status === 'needs_input')
+const statuses: Record<string, string> = { queued: '等待执行', running: '执行中', needs_input: '等待补充信息', completed: '已结束', partial: '部分完成', failed: '执行失败', limited: '达到上限', cancelled: '已取消', interrupted: '服务重启中断' }
 const dimensions: Record<string, string> = { goal: '研究目标', method: '方法', experiments: '实验设置', results: '实验结果', limitations: '局限' }
 let timer: ReturnType<typeof setTimeout> | undefined
 let epoch = 0
@@ -62,7 +67,7 @@ async function start() {
   working.value = true; error.value = ''
   try {
     run.value = await api<Run>('/agent/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ goal: goal.value, reading_ids: selected.value, mode: mode.value }) })
+      body: JSON.stringify({ goal: goal.value, reading_ids: selected.value, mode: mode.value, router_mode: routerMode.value }) })
     history.value = [run.value, ...history.value].slice(0, 20); schedule()
   } catch (e) { error.value = e instanceof Error ? e.message : '任务启动失败。' }
   finally { working.value = false }
@@ -79,7 +84,17 @@ async function cancel() {
   catch { error.value = '取消请求失败，请重试。' }
   finally { working.value = false; schedule() }
 }
-function open(identifier: string) { epoch++; run.value = history.value.find(item => item.id === identifier) ?? null; schedule() }
+async function reply() {
+  if (!run.value || working.value || !replyText.value.trim()) return
+  epoch++; working.value = true; error.value = ''
+  try {
+    run.value = await api<Run>(`/agent/runs/${run.value.id}/reply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: replyText.value }) })
+    history.value = history.value.map(item => item.id === run.value!.id ? run.value! : item)
+    replyText.value = ''; schedule()
+  } catch (e) { error.value = e instanceof Error ? e.message : '继续任务失败。' }
+  finally { working.value = false }
+}
+function open(identifier: string) { epoch++; replyText.value = ''; run.value = history.value.find(item => item.id === identifier) ?? null; schedule() }
 function safeURL(value: string) { return /^https?:\/\//i.test(value) ? value : undefined }
 </script>
 
@@ -88,18 +103,20 @@ function safeURL(value: string) { return /^https?:\/\//i.test(value) ? value : u
     <div class="module-heading"><div><div class="eyebrow">RESEARCH ASSISTANT</div><h2 id="agent-heading">研究任务助手</h2></div><span class="module-tag">Agent</span></div>
     <form @submit.prevent="start">
       <label class="agent-field"><span>执行模式</span><select v-model="mode" :disabled="running || working"><option value="single">单 Agent（默认）</option><option value="multi">多 Agent（协调、检索、分析）</option></select></label>
-      <label>研究任务<textarea v-model="goal" rows="3" maxlength="3000" :disabled="running || working" placeholder="帮我找小模型调用工具的论文，选三篇并比较它们的方法。" /></label>
+      <label v-if="mode === 'single'" class="agent-field"><span>工具路由</span><select v-model="routerMode" :disabled="running || working"><option value="cloud">云端大模型（默认）</option><option value="local">本地微调小模型（实验）</option></select></label>
+      <label>研究任务<textarea v-model="goal" rows="3" :maxlength="routerMode === 'local' ? 1500 : 3000" :disabled="running || working" placeholder="帮我找小模型调用工具的论文，选三篇并比较它们的方法。" /></label>
       <details><summary @click="refreshLibrary">使用已上传的 PDF（可选，最多 5 篇）</summary>
         <p v-if="!library.some(p => p.kind === 'pdf')" class="help">可先在下方上传 PDF，再展开这里刷新列表。</p>
         <label v-for="paper in selectablePapers" :key="paper.id" class="choice"><input v-model="selected" type="checkbox" :value="paper.id" :disabled="running || working || (selected.length >= 5 && !selected.includes(paper.id))">{{ paper.title }}</label>
       </details>
-      <div class="actions"><button class="primary" :disabled="loading || !configured || working || running || goal.trim().length < 2">启动研究任务</button><button v-if="running" type="button" class="secondary" :disabled="working" @click="cancel">取消研究任务</button></div>
+      <div class="actions"><button class="primary" :disabled="loading || !configured || working || running || goal.trim().length < 2">启动研究任务</button><button v-if="running || waiting" type="button" class="secondary" :disabled="working" @click="cancel">取消研究任务</button></div>
     </form>
     <p v-if="!configured" class="help">请先配置云端模型。</p>
     <p v-if="error" class="message error" role="alert">{{ error }}</p>
-    <label v-if="history.length" class="agent-field"><span>研究任务历史</span><select :value="run?.id ?? ''" :disabled="running || working" @change="open(($event.target as HTMLSelectElement).value)"><option value="">选择历史研究任务</option><option v-for="item in history" :key="item.id" :value="item.id">{{ modes[item.mode ?? 'single'] }} · {{ item.goal }}</option></select></label>
+    <label v-if="history.length" class="agent-field"><span>研究任务历史</span><select :value="run?.id ?? ''" :disabled="running || working" @change="open(($event.target as HTMLSelectElement).value)"><option value="">选择历史研究任务</option><option v-for="item in history" :key="item.id" :value="item.id">{{ modes[item.mode ?? 'single'] }} · {{ routerLabel(item) }} · {{ item.goal }}</option></select></label>
     <article v-if="run" class="agent-result">
-      <h3>{{ run.goal }}</h3><p role="status">{{ modes[run.mode ?? 'single'] }} · {{ statuses[run.status] ?? run.status }} · {{ run.message }}</p>
+      <h3>{{ run.goal }}</h3><p role="status">{{ modes[run.mode ?? 'single'] }} · {{ routerLabel(run) }} · {{ statuses[run.status] ?? run.status }} · {{ run.message }}</p>
+      <form v-if="waiting" @submit.prevent="reply"><label>{{ run.clarification }}<textarea v-model="replyText" aria-label="补充信息" rows="2" maxlength="1000" :disabled="working" /></label><button class="primary" :disabled="working || !replyText.trim()">补充并继续</button></form>
       <details open><summary>执行记录</summary><ol><li v-for="(event, index) in run.events" :key="index" :class="{ warning: event.status === 'error' || event.status === 'partial' }"><strong v-if="event.role">{{ roles[event.role] ?? event.role }} · </strong>{{ event.message }}</li></ol></details>
       <div v-if="run.papers.length"><h4>检索到的候选论文</h4><ul><li v-for="paper in run.papers" :key="paper.paper_id"><a :href="safeURL(paper.url)" target="_blank" rel="noopener noreferrer">{{ paper.title }}</a> · {{ paper.public_pdf ? '提供公开全文链接' : '未提供公开全文链接' }}</li></ul></div>
       <div v-if="run.readings.length"><h4>本任务可阅读的 PDF</h4><ul><li v-for="paper in run.readings" :key="paper.id">{{ paper.title }}</li></ul></div>

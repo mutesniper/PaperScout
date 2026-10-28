@@ -1,0 +1,83 @@
+{
+  "total_rows": 228,
+  "added_rows": 60,
+  "probe_rows": 36,
+  "prior_labels_changed": 0,
+  "class_counts": {
+    "answer": 40,
+    "compare": 34,
+    "search": 42,
+    "finish": 39,
+    "download_pdf": 35,
+    "clarify": 38
+  },
+  "probe_class_counts": {
+    "search": 6,
+    "download_pdf": 6,
+    "answer": 6,
+    "compare": 6,
+    "finish": 6,
+    "clarify": 6
+  },
+  "train_sha256": "413033f7fd2015d7c00a38da39eca37538006814249daa287588973c627e6dbc",
+  "probe_sha256": "7c6c94f8d0ae1cf1b6ae18131b79fa0b8f135b7cb609846946c5df484be646cc",
+  "holdout_hashes": {
+    "validation": "492e95fa5a14246268681aafdd4bddd3f1bc670d341c08f0b1631389e3748d8c",
+    "test_candidate": "292078ca8a08f6cc163f4ab0da351dad13ddfc72f8c4f3fb170fc3cb6690c02d"
+  },
+  "independent_review": "pending",
+  "near_pairs": [
+    {
+      "left": "validation-v2_search_scope-04",
+      "right": "test_candidate-v2_version_audit-04",
+      "left_split": "validation",
+      "right_split": "test_candidate",
+      "goal_similarity": 0.3333,
+      "same_resource_shape": false,
+      "left_goal": "只比较已上传Paper B和Paper C对低资源的定义",
+      "right_goal": "比较已上传A-v1和A-v2的实验变化"
+    },
+    {
+      "left": "validation-v2_search_scope-04",
+      "right": "test_candidate-v2_network_boundary-04",
+      "left_split": "validation",
+      "right_split": "test_candidate",
+      "goal_similarity": 0.3103,
+      "same_resource_shape": false,
+      "left_goal": "只比较已上传Paper B和Paper C对低资源的定义",
+      "right_goal": "禁止联网，只比较已上传A与B的论证依据"
+    },
+    {
+      "left": "progression-033",
+      "right": "test_candidate-v2_language_constraints-10",
+      "left_split": "new_train",
+      "right_split": "test_candidate",
+      "goal_similarity": 0.3056,
+      "same_resource_shape": false,
+      "left_goal": "Explain Cedar first; only then contrast it with Maple.",
+      "right_goal": "A and B have been explained separately. Now contrast their limitations."
+    },
+    {
+      "left": "progression-034",
+      "right": "test_candidate-v2_language_constraints-10",
+      "left_split": "new_train",
+      "right_split": "test_candidate",
+      "goal_similarity": 0.3056,
+      "same_resource_shape": true,
+      "left_goal": "Explain Cedar first; only then contrast it with Maple.",
+      "right_goal": "A and B have been explained separately. Now contrast their limitations."
+    },
+    {
+      "left": "progression-036",
+      "right": "test_candidate-v2_language_constraints-10",
+      "left_split": "new_train",
+      "right_split": "test_candidate",
+      "goal_similarity": 0.3056,
+      "same_resource_shape": true,
+      "left_goal": "Explain Cedar first; only then contrast it with Maple.",
+      "right_goal": "A and B have been explained separately. Now contrast their limitations."
+    }
+  ],
+  "probe_role": "Frozen before training; evaluated once after selection; synthetic authored diagnostic, not independent human gold.",
+  "selection_data": "legacy validation only; never probe or test_candidate"
+}

@@ -2,8 +2,8 @@
 from copy import deepcopy
 from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
-from ..schemas import Plan
-from ..comparison import ComparisonRequest
+from app.schemas import Plan
+from app.rag.comparison import ComparisonRequest
 
 class Strict(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)

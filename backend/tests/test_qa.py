@@ -6,8 +6,8 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 from app.main import create_app
-from app.reading_schemas import Reading, Section, Fragment
-from app.retrieval import CloudEmbedding, chunks_for, retrieve, vectors_array
+from app.papers.schemas import Reading, Section, Fragment
+from app.rag.retrieval import CloudEmbedding, chunks_for, retrieve, vectors_array
 from app.storage import Store
 
 
@@ -132,7 +132,7 @@ def test_chunks_preserve_pages_and_limit_context():
 
 
 def test_qa_model_call_is_bounded_and_only_sends_retrieved_text():
-    from app.models import CloudModel
+    from app.llm.client import CloudModel
     async def check():
         calls = []
         def handler(request):

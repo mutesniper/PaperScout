@@ -1,14 +1,42 @@
+# Local configuration and credentials
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+
+# Python environments and caches
 .venv/
+venv/
+.venv-*/
 __pycache__/
 .pytest_cache/
-*.pyc
-backend/data/
+.mypy_cache/
+.ruff_cache/
+*.py[cod]
+*.egg-info/
+.coverage
+.coverage.*
+htmlcov/
+
+# Runtime data, models, checkpoints and experiment outputs
+/backend/data/
+/outputs/
+*.safetensors
+*.ckpt
+
+# Frontend dependencies and generated artifacts
 node_modules/
-frontend/dist/
-*.log
+/frontend/dist/
+*.tsbuildinfo
 frontend/test-results/
 frontend/playwright-report/
-outputs/evaluation/
+
+# Logs and local editor / OS files
+*.log
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

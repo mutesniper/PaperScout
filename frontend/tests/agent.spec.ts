@@ -3,6 +3,35 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 const emptyRun = { id: 'job1', goal: '比较论文方法', status: 'running', message: '正在执行', created_at: '2026-10-24',
   events: [], papers: [], readings: [], comparison: null, answers: [] }
+
+test('local routing selection pauses for clarification and resumes the same task', async ({ page }) => {
+  let current: any = { ...emptyRun, router_mode: 'local', status: 'needs_input', clarification: '你选择哪两篇？' }
+  await page.route('**/api/agent/runs', route => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: [] })
+    expect(route.request().postDataJSON().router_mode).toBe('local')
+    return route.fulfill({ status: 202, json: current })
+  })
+  await page.route('**/api/agent/runs/job1/reply', route => {
+    expect(route.request().postDataJSON()).toEqual({ text: '选择第一篇与第二篇' })
+    current = { ...current, status: 'completed', clarification: null, message: '对比完成' }
+    return route.fulfill({ status: 202, json: current })
+  })
+  await page.goto('/')
+  const panel = page.locator('.research-agent')
+  await expect(panel.getByLabel('工具路由')).toHaveValue('cloud')
+  await panel.getByLabel('工具路由').selectOption('local')
+  await panel.getByLabel('研究任务', { exact: true }).fill('比较论文方法')
+  await panel.getByRole('button', { name: '启动研究任务' }).click()
+  await expect(panel.getByRole('status')).toContainText('等待补充信息')
+  await panel.getByLabel('补充信息').fill('选择第一篇与第二篇')
+  await panel.getByRole('button', { name: '补充并继续' }).click()
+  await expect(panel.getByRole('status')).toContainText('本地微调路由')
+  await expect(panel.getByRole('status')).toContainText('对比完成')
+  await panel.getByLabel('执行模式').selectOption('multi')
+  await expect(panel.getByLabel('工具路由')).toHaveCount(0)
+  await panel.getByLabel('执行模式').selectOption('single')
+  await expect(panel.getByLabel('工具路由')).toHaveValue('cloud')
+})
 test.beforeEach(async ({ page }) => {
   await page.route('http://paperscout.test/**', async route => {
     const path = new URL(route.request().url()).pathname
@@ -26,7 +55,7 @@ test('agent starts with selected PDFs, polls evidence results and restores histo
       { reading_id: 'p2', dimension: 'method', text: '未找到足够信息', supported: false, evidence: [] }] } }
   await page.route('**/api/agent/runs', route => {
     if (route.request().method() === 'GET') return route.fulfill({ json: saved })
-    expect(route.request().postDataJSON()).toEqual({ goal: '比较论文方法', reading_ids: ['p1', 'p2'], mode: 'single' })
+    expect(route.request().postDataJSON()).toEqual({ goal: '比较论文方法', reading_ids: ['p1', 'p2'], mode: 'single', router_mode: 'cloud' })
     saved = [emptyRun]; return route.fulfill({ status: 202, json: emptyRun })
   })
   await page.route('**/api/agent/runs/job1', route => { saved = [finished]; return route.fulfill({ json: finished }) })
@@ -84,7 +113,7 @@ test('multi-agent selection persists and role events remain visible in history',
   let saved: any[] = []
   await page.route('**/api/agent/runs', route => {
     if (route.request().method() === 'GET') return route.fulfill({ json: saved })
-    expect(route.request().postDataJSON()).toEqual({ goal: '比较论文方法', reading_ids: [], mode: 'multi' })
+    expect(route.request().postDataJSON()).toEqual({ goal: '比较论文方法', reading_ids: [], mode: 'multi', router_mode: 'cloud' })
     saved = [active]
     return route.fulfill({ status: 202, json: active })
   })

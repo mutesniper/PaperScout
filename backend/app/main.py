@@ -13,16 +13,17 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
-from .models import CloudModel
-from .providers import Sources, deduplicate, with_preprint_link
-from .schemas import Idea, Paper, SearchRequest, SearchResult, SourceResult
-from .storage import Store
-from .ranking import source_candidates, rank_candidates, ranking_details
-from .reading import router as reading_router
-from .qa import router as qa_router
-from .comparison import router as comparison_router
-from .agent import router as agent_router
-from .retrieval import CloudEmbedding
+from app.llm.client import CloudModel
+from app.search.providers import Sources, deduplicate, with_preprint_link
+from app.schemas import Idea, Paper, SearchRequest, SearchResult, SourceResult
+from app.storage import Store
+from app.search.ranking import source_candidates, rank_candidates, ranking_details
+from app.papers.service import router as reading_router
+from app.rag.qa import router as qa_router
+from app.rag.comparison import router as comparison_router
+from app.agent.core import router as agent_router
+from app.agent.local_router import LocalRouter
+from app.rag.retrieval import CloudEmbedding
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / '.env')
@@ -40,6 +41,7 @@ def create_app(db_path=None):
         async with httpx.AsyncClient(timeout=12, headers={'User-Agent': 'PaperScout/0.1 (personal research assistant)'}) as client:
             app.state.sources = Sources(client, os.getenv('SEMANTIC_SCHOLAR_API_KEY', ''))
             app.state.model = CloudModel(client, os.getenv('LLM_BASE_URL', ''), os.getenv('LLM_API_KEY', ''), os.getenv('LLM_MODEL', ''))
+            app.state.local_router = LocalRouter(os.getenv('LOCAL_ROUTER_URL', 'http://127.0.0.1:8010'))
             app.state.embedding = CloudEmbedding(client, os.getenv('EMBEDDING_BASE_URL', ''), os.getenv('EMBEDDING_API_KEY', ''), os.getenv('EMBEDDING_MODEL', ''))
             try:
                 yield

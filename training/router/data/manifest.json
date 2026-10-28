@@ -1,0 +1,94 @@
+{
+  "version": "router-corpus-v2",
+  "seed": 20261028,
+  "status": "authored_corpus_not_model_validated",
+  "independent_review": "pending",
+  "semantic_split_review": "author_reviewed_compositional_holdout",
+  "test_status": "candidate_not_independently_sealed_not_scored",
+  "augmentation": "none; one authored state per row; branches within a task family are correlated",
+  "v1_holdout_disposition": "All 24 old validation/test seeds moved to train; never evaluate as held-out again",
+  "datasets": {
+    "train": {
+      "rows": 84,
+      "class_counts": {
+        "answer": 14,
+        "compare": 14,
+        "search": 14,
+        "finish": 14,
+        "download_pdf": 14,
+        "clarify": 14
+      },
+      "parent_scenarios": 84,
+      "scenario_groups": 63,
+      "coverage": {
+        "no_pdf": 25,
+        "one_pdf": 22,
+        "multiple_pdfs": 37,
+        "no_candidates": 58,
+        "closed_candidate": 3,
+        "prior_results": 14,
+        "download_failure": 7,
+        "zero_tool_budget": 9,
+        "zero_steps": 1,
+        "cancelled": 1
+      }
+    },
+    "validation": {
+      "rows": 36,
+      "class_counts": {
+        "answer": 6,
+        "clarify": 6,
+        "compare": 6,
+        "finish": 6,
+        "search": 6,
+        "download_pdf": 6
+      },
+      "parent_scenarios": 36,
+      "scenario_groups": 6,
+      "coverage": {
+        "no_pdf": 7,
+        "one_pdf": 12,
+        "multiple_pdfs": 17,
+        "no_candidates": 23,
+        "closed_candidate": 1,
+        "prior_results": 10,
+        "download_failure": 5,
+        "zero_tool_budget": 1,
+        "zero_steps": 1,
+        "cancelled": 1
+      }
+    },
+    "test_candidate": {
+      "rows": 120,
+      "class_counts": {
+        "clarify": 20,
+        "download_pdf": 20,
+        "search": 20,
+        "finish": 20,
+        "answer": 20,
+        "compare": 20
+      },
+      "parent_scenarios": 120,
+      "scenario_groups": 12,
+      "coverage": {
+        "no_pdf": 18,
+        "one_pdf": 38,
+        "multiple_pdfs": 64,
+        "no_candidates": 81,
+        "closed_candidate": 1,
+        "prior_results": 42,
+        "download_failure": 7,
+        "zero_tool_budget": 7,
+        "zero_steps": 1,
+        "cancelled": 1
+      }
+    }
+  },
+  "system_prompt_sha256": "96f11c102ab5f6e4cdee9e1437e60614068316bb0b621a2496df963021a5652c",
+  "files": {
+    "test_candidate.jsonl": "292078ca8a08f6cc163f4ab0da351dad13ddfc72f8c4f3fb170fc3cb6690c02d",
+    "train.jsonl": "2703d2fc8336cccf9da5352d5d68c6aa3816f48c56e740091f716d215120130f",
+    "train.messages.jsonl": "71be746ed2f4c10d6a768096b9388312875e682b80949b016294dc6d3ad8789a",
+    "validation.jsonl": "492e95fa5a14246268681aafdd4bddd3f1bc670d341c08f0b1631389e3748d8c"
+  }
+}

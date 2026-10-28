@@ -12,9 +12,9 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from app.schemas import SearchRequest
-from app.reading_schemas import ImportPaper
-from app.qa import Question
-from app.comparison import ComparisonRequest
+from app.papers.schemas import ImportPaper
+from app.rag.qa import Question
+from app.rag.comparison import ComparisonRequest
 
 logger = logging.getLogger('paperscout.mcp')
 Identifier = Annotated[str, Field(min_length=1, max_length=100, pattern=r'^[A-Za-z0-9_-]+$')]

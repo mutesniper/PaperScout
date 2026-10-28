@@ -5,7 +5,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from app.main import create_app
-from app.agent_budget import Budget, BudgetExceeded, current_budget, reserve
+from app.agent.budget import Budget, BudgetExceeded, current_budget, reserve
 from app.schemas import SearchResult, SearchRequest, Plan, SourceResult
 from test_comparison import prepare
 from test_core import paper
@@ -127,7 +127,7 @@ def test_invalid_decision_timeout_and_restart(tmp_path, monkeypatch):
         assert result['status'] == 'failed'
         async def slow(*args):
             await asyncio.sleep(30)
-        monkeypatch.setattr('app.agent.TOTAL_TIMEOUT', .05)
+        monkeypatch.setattr('app.agent.core.TOTAL_TIMEOUT', .05)
         client.app.state.model.agent_decide = AsyncMock(side_effect=slow)
         assert wait(client, start(client))['status'] == 'limited'
         result.update(status='running')
@@ -189,7 +189,7 @@ def test_search_read_then_evidence_answer(tmp_path, monkeypatch):
 def test_model_decision_request_has_budget_and_no_extra_retries(monkeypatch):
     import json
     import httpx
-    from app.models import CloudModel
+    from app.llm.client import CloudModel
     from app.tools.schemas import ACTION
     async def check():
         budget = Budget()

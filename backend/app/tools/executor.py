@@ -1,11 +1,11 @@
 """Task-scoped tool execution, evidence services and result bookkeeping."""
 import httpx
 from fastapi import HTTPException
-from ..reading_schemas import ImportPaper
-from ..reading import import_paper
-from ..comparison import compare
-from ..qa import Question, ask
-from .search import search_arxiv_first
+from app.papers.schemas import ImportPaper
+from app.papers.service import import_paper
+from app.rag.comparison import compare
+from app.rag.qa import Question, ask
+from app.tools.search import search_arxiv_first
 
 class JobRequest:
     """Internal service context; job cancellation is owned by the task runner."""
@@ -22,8 +22,9 @@ class ToolExecutor:
         self.run = run
         self.event = event
         self.request = JobRequest(app)
-        self.candidates = {}
-        self.read_outcomes = {}
+        saved = run.get('router_checkpoint', {})
+        self.candidates = dict(saved.get('candidates', {}))
+        self.read_outcomes = dict(saved.get('read_outcomes', {}))
 
     async def execute(self, action):
         app, run, event = self.app, self.run, self.event
@@ -41,6 +42,10 @@ class ToolExecutor:
                     candidates[paper.id] = {'paper_id': paper.id, 'record_id': result.id,
                         'title': paper.title, 'abstract': paper.abstract[:600], 'url': paper.url,
                         'public_pdf': bool(paper.fulltext_url and paper.access in ('open_fulltext', 'open_preprint'))}
+                    for ready in run['readings']:
+                        if ready.get('paper_id') == paper.id or ready.get('source_url') and ready['source_url'] in (paper.url,paper.fulltext_url):
+                            ready['paper_id'] = paper.id
+                            read_outcomes[paper.id] = {'status':'ok','reading_id':ready['id'],'title':ready['title']}
                 run['papers'] = list(candidates.values())[:20]
                 failures = [source.source + '：' + source.message for source in result.sources if source.status != 'ok']
                 empty = [source.source + '：检索成功但无匹配论文' for source in result.sources
@@ -52,7 +57,8 @@ class ToolExecutor:
                 if not paper or not paper['public_pdf']:
                     raise HTTPException(422, '该论文不是本任务可获取公开 PDF 的候选；可手动上传后重新发起。')
                 doc = await import_paper(ImportPaper(record_id=paper['record_id'], paper_id=action.paper_id, mode='pdf'), request)
-                run['readings'].append({'id': doc.id, 'title': doc.title})
+                if doc.id not in {d['id'] for d in run['readings']}:
+                    run['readings'].append({'id': doc.id, 'title': doc.title, 'paper_id': action.paper_id})
                 read_outcomes[action.paper_id] = {'status': 'ok', 'reading_id': doc.id, 'title': doc.title}
                 event(tool, 'ok', '已获取并解析：' + doc.title)
             elif tool == 'compare':

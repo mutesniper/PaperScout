@@ -4,8 +4,8 @@ import pytest
 from fastapi.testclient import TestClient
 from app.main import create_app
 from app.schemas import Paper, SearchRequest, SearchResult
-from app.providers import deduplicate, parse_semantic
-from app.ranking import source_candidates, rank_candidates
+from app.search.providers import deduplicate, parse_semantic
+from app.search.ranking import source_candidates, rank_candidates
 
 def paper(identifier, **fields):
     return Paper(id=identifier, title=identifier, sources=['arxiv'], url='https://example.org',

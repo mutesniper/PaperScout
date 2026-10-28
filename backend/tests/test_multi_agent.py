@@ -5,7 +5,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from app.main import create_app
-from app.agent_budget import reserve
+from app.agent.budget import reserve
 from app.schemas import SearchResult, SearchRequest, Plan, SourceResult
 from test_agent import wait
 from test_comparison import prepare
@@ -148,13 +148,13 @@ def test_multi_cancel_timeout_and_validation(tmp_path, monkeypatch):
         assert client.post('/api/agent/runs', json={'goal': 'another', 'mode': 'single'}).status_code == 409
         result = client.post(f'/api/agent/runs/{identifier}/cancel').json()
         assert result['status'] == 'cancelled' and result['mode'] == 'multi'
-        monkeypatch.setattr('app.agent.TOTAL_TIMEOUT', .05)
+        monkeypatch.setattr('app.agent.core.TOTAL_TIMEOUT', .05)
         assert wait(client, launch(client))['status'] == 'limited'
         assert client.post('/api/agent/runs', json={'goal': 'test', 'mode': 'unknown'}).status_code == 422
 
 
 def test_total_decision_limit_stops_before_specialist_call(tmp_path, monkeypatch):
-    monkeypatch.setattr('app.multi_agent.MAX_DECISIONS', 1)
+    monkeypatch.setattr('app.agent.multi.MAX_DECISIONS', 1)
     with TestClient(create_app(tmp_path / 'db')) as client:
         prepare(client)
         client.app.state.model.agent_role_decide = AsyncMock(return_value=delegate('analysis'))
@@ -165,9 +165,9 @@ def test_total_decision_limit_stops_before_specialist_call(tmp_path, monkeypatch
 
 def test_role_prompts_and_budget_use_real_model_adapter():
     import json
-    from app.models import CloudModel
-    from app.multi_agent import COORDINATOR, RETRIEVAL, ANALYSIS
-    from app.agent_budget import Budget, current_budget
+    from app.llm.client import CloudModel
+    from app.agent.multi import COORDINATOR, RETRIEVAL, ANALYSIS
+    from app.agent.budget import Budget, current_budget
     async def check():
         bodies = []
         def handler(request):

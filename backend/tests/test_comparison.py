@@ -4,10 +4,10 @@ import pytest
 from fastapi.testclient import TestClient
 from app.main import create_app
 from test_qa import setup, document
-from app.comparison import comparison_chunks
-from app.retrieval import chunks_for, lexical_scores, MAX_EVIDENCE_CHARS
-from app.retrieval import CloudEmbedding
-from app.reading_schemas import Section, Fragment
+from app.rag.comparison import comparison_chunks
+from app.rag.retrieval import chunks_for, lexical_scores, MAX_EVIDENCE_CHARS
+from app.rag.retrieval import CloudEmbedding
+from app.papers.schemas import Section, Fragment
 
 
 def test_goal_prefers_inline_abstract_over_author_research_interests():

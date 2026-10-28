@@ -4,8 +4,8 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-from .schemas import SearchResult
-from .reading_schemas import Reading, Summary, DocumentSummary
+from app.schemas import SearchResult
+from app.papers.schemas import Reading, Summary, DocumentSummary
 
 class Store:
     def __init__(self, path: Path):

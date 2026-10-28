@@ -1,0 +1,25 @@
+{
+  "version": "targeted-train-v1",
+  "base_rows": 84,
+  "added_rows": 48,
+  "total_rows": 132,
+  "class_counts": {
+    "answer": 21,
+    "compare": 18,
+    "search": 21,
+    "finish": 26,
+    "download_pdf": 22,
+    "clarify": 24
+  },
+  "basis": "Training-side errors and general resource/clarification/progress constraints; not test predictions",
+  "independent_review": "pending",
+  "holdout_hashes": {
+    "validation": "492e95fa5a14246268681aafdd4bddd3f1bc670d341c08f0b1631389e3748d8c",
+    "test_candidate": "292078ca8a08f6cc163f4ab0da351dad13ddfc72f8c4f3fb170fc3cb6690c02d"
+  },
+  "files": {
+    "additions.jsonl": "3c225a394a7d97f7369776f10a3e28c1f1d705294ee5a1b11424f1cdff71c9c3",
+    "train.jsonl": "3b7a2b5e2a5dedd8b2f9530f4ae14525184c93bdb62a5b8771d4db3fcb78ee7e",
+    "train.messages.jsonl": "e6afc6b9ec5fdf40b5800a7eaa79c741459ef80b049efb09002316bbfa78ec04"
+  }
+}
