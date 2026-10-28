@@ -458,7 +458,7 @@ cd ..
 
 ## 📬 联系方式
 
-- 邮箱：[1469395702@qq.com](mailto:1469395702@qq.com)
+- 邮箱：[q1469395702@163.com](mailto:q1469395702@163.com)
 - 问题反馈与建议：[GitHub Issues](https://github.com/mutesniper/PaperScout/issues)
 
 <a id="license"></a>
