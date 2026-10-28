@@ -10,7 +10,7 @@
 ![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 
-[默认适配器](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.0.0) · [实验候选](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.1.0-experimental.1) · [快速开始](#快速开始) · [系统架构](#系统架构) · [评测与进展](#评测与进展) · [项目结构](#项目结构) · [文档中心](docs/README.md)
+[应用 v1.0.0](https://github.com/mutesniper/PaperScout/releases/tag/paperscout-v1.0.0) · [默认适配器](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.0.0) · [实验候选](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.1.0-experimental.1) · [快速开始](#快速开始) · [系统架构](#系统架构) · [评测与进展](#评测与进展) · [项目结构](#项目结构) · [文档中心](docs/README.md)
 
 </div>
 
@@ -19,6 +19,8 @@
 PaperScout 是面向本地单用户的论文研究工作台。输入自然语言研究想法，生成可编辑的检索计划；从 arXiv 和 Semantic Scholar 找到论文后，上传或获取 PDF，完成全文摘要、证据问答与多篇对比。
 
 支持手动探索、LangGraph 单 Agent 工具循环和多角色协作。单 Agent 默认使用云端模型，也可切换为**本地微调小模型路由（实验）**，工具参数与研究内容仍由云端生成。
+
+应用版本 `paperscout-v1.0.0` 固定本次交付源码，下载与验证范围见[版本说明](docs/releases/v1.0.0.md)。模型适配器使用独立的 `router-*` 版本。
 
 ## 核心能力
 
