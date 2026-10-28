@@ -10,7 +10,7 @@
 ![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 
-[适配器下载](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.0.0) · [快速开始](#快速开始) · [系统架构](#系统架构) · [评测与进展](#评测与进展) · [项目结构](#项目结构) · [文档中心](docs/README.md)
+[默认适配器](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.0.0) · [实验候选](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.1.0-experimental.1) · [快速开始](#快速开始) · [系统架构](#系统架构) · [评测与进展](#评测与进展) · [项目结构](#项目结构) · [文档中心](docs/README.md)
 
 </div>
 
@@ -125,7 +125,22 @@ npm run dev
 
 相较原始模型，最终版在上述三项评测中分别提升 **5.56、19.44、25个百分点**。完整保留三组训练记录、逐题输出和失败分析，适配器保存与独立重载核验通过。
 
-评测范围：原验证集用于选模；新诊断集在训练前冻结、不参与选模，但仍为作者自审的合成样例；模拟任务使用固定工具返回，不代表真实论文分析质量。原120条测试候选未评分。最终模型已作为单 Agent 可选实验路由接入，仍有搜索与预算边界错误，由后端校验拦截；接入不改变上述离线指标。[完整实验报告](docs/evaluation/router/PROGRESSION_RUN.md) · [首轮训练记录](docs/evaluation/router/FORMAL_RUN.md)。
+评测范围：原验证集用于选模；新诊断集在训练前冻结、不参与选模，但仍为作者自审的合成样例；模拟任务使用固定工具返回，不代表真实论文分析质量。120 条测试候选已在后续对照中首次评分，当前版为 105/120。最终模型已作为单 Agent 可选实验路由接入，仍有搜索与预算边界错误，由后端校验拦截；接入不改变上述离线指标。[完整实验报告](docs/evaluation/router/PROGRESSION_RUN.md) · [首轮训练记录](docs/evaluation/router/FORMAL_RUN.md)。
+
+### 实验候选 · v1.1.0-experimental.1
+
+[下载候选恢复包](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.1.0-experimental.1) · [完整实验报告](docs/evaluation/router/CONSERVATIVE_RUN.md)
+
+基于当前适配器，用 300 条样例低学习率续训两轮，选中第 2 轮。此版本单独以 **Pre-release** 发布，便于复现与比较；**应用默认仍使用 v1.0.0**。
+
+| 指标 | 当前默认 v1.0.0 | 实验候选 |
+| --- | --- | --- |
+| 开发验证 | 31/36 | **33/36** |
+| 旧诊断集 | 29/36 | **30/36** |
+| 首次评分测试候选 | 105/120 | 105/120 |
+| 模拟研究任务完成 | **19/20** | 18/20 |
+
+候选改善了明确目标的搜索判断，但新增了禁止联网时仍下载、未澄清选择就直接对比的错误，未通过不退化验收。发布附件包含适配器、配置、独立恢复脚本及评测报告，不含基座权重；请使用包内脚本实验，当前应用的身份校验不接受直接替换为候选权重。
 
 分层评测还覆盖初始路由、取消与受阻处理、调用次数和失败轨迹，详见[三模型对照报告](docs/evaluation/router/PROGRESSION_RUN.md)。云端问答与单 / 多 Agent 的真实验证单独记录在[评测中心](docs/evaluation/README.md)。
 

@@ -1,4 +1,19 @@
-# 发布最终工具路由适配器
+# 工具路由适配器发布与恢复
+
+## 版本选择
+
+| 版本 | 定位 | 恢复包 |
+| --- | --- | --- |
+| [router-v1.0.0](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.0.0) | 当前应用默认的本地实验路由 | `paperscout-router-v1.0.0.zip` |
+| [router-v1.1.0-experimental.1](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.1.0-experimental.1) | 第四组第2轮候选，未采用为默认模型 | `paperscout-router-v1.1.0-experimental.1.zip` |
+
+新候选开发验证33/36、旧诊断30/36、测试候选105/120；模拟研究任务18/20，低于当前版19/20，且有新增约束错误。发布用于复现与对照，不代表通过替换验收，见[完整实验记录](../evaluation/router/CONSERVATIVE_RUN.md)。两个版本分别下载同名ZIP与SHA256附件；不要混用配置与权重。
+
+候选包同样提供独立的 `restore.py`，只需要固定版本基座和本包即可恢复，不必额外加载旧适配器。先运行 `python restore.py --verify-only`，再以 `--base-model` 指向基座并运行 `--self-test`。当前应用仅接受默认版身份，候选请通过包内脚本实验。
+
+候选包发布前已从ZIP独立解压验证：包内与基座哈希均通过，36/36参考输出一致。压缩包SHA256：`b0b9ce383b636c6ef834f10693b9771a4bc94e5de4b8acfffdc5d2b4594d9011`。这验证的是恢复一致性，不是36题全部答对。
+
+## 默认版发布记录
 
 已发布：[router-v1.0.0 实验预发布](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.0.0)。ZIP和SHA256附件均已上传，GitHub返回的文件哈希与本地一致。本地未提交的业务代码及文档没有随此发布上传；下方步骤供后续版本参考。
 
