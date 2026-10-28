@@ -1,4 +1,4 @@
-"""Local models, simulated tools: layered controlled-task evaluation only."""
+"""使用本地模型和模拟工具，仅进行受控任务的分层评测。"""
 import argparse
 import hashlib
 import json
@@ -23,7 +23,7 @@ def run_task(task,decide):
     world=World(task)
     trace=[]
     reason='step_limit'
-    # Include terminal decision; hard cap also bounds repeated clarification.
+    # 计入结束决策，硬上限同时限制重复澄清。
     for step in range(12):
         state=world.state.model_copy(deep=True)
         expected=world.expected()

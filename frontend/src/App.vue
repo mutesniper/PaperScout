@@ -21,7 +21,7 @@ function syncNavigation() {
   for (const section of sections) {
     if (section && section.getBoundingClientRect().top <= boundary) current = section.id
   }
-  // Short final modules may never reach the activation line before the page ends.
+  // 页面末尾较短的模块可能在滚动到底时仍未到达激活线。
   if (window.scrollY > 0 && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) {
     current = navigation[navigation.length - 1].id
   }

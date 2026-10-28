@@ -1,4 +1,4 @@
-"""Independent routing contract. Does not replace the production Action union."""
+"""独立的路由契约，不替代业务中的 Action 联合类型。"""
 import json
 from typing import Literal
 
@@ -62,7 +62,7 @@ class State(Strict):
 
 
 def allowed_routes(state: State) -> list[str]:
-    """Availability, not desirability: never inspect labels or interpret the goal."""
+    """仅判断操作是否可用，不判断是否合适；不读取标签或解释目标。"""
     if state.cancelled or state.remaining.steps == 0:
         return ['finish']
     routes = ['finish', 'clarify']

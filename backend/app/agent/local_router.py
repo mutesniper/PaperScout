@@ -1,4 +1,4 @@
-"""Local route decisions with explicit identity, resource and budget validation."""
+"""本地路由决策，明确校验模型身份、资源与预算。"""
 import hashlib
 import httpx
 from pydantic import Field
@@ -28,7 +28,7 @@ class LocalRouter:
 
     async def decide(self, state):
         try:
-            # Local traffic must not accidentally pass through system proxies.
+            # 本地请求不得意外经过系统代理。
             async with httpx.AsyncClient(timeout=45, trust_env=False) as client:
                 response = await client.post(self.url+'/route', json=state.model_dump())
                 if response.status_code in (413,422):
@@ -58,7 +58,7 @@ def routing_state(run, candidates, outcomes, counts, limits, steps):
     if candidates:
         results.append('已检索到候选并提供来源链接：'+', '.join(p['title'] for p in candidates.values()))
     recent = list(run.get('tool_outcomes', []))
-    # Keep every download attempt; never drop failures when constructing model input.
+    # 保留所有下载尝试，构造模型输入时不能遗漏失败记录。
     recent += [{'operation':'download_pdf','target_id':key,
                 'status':'success' if value['status']=='ok' else 'failed',
                 'detail':value.get('reason') or ('已导入PDF：'+value['title'])}

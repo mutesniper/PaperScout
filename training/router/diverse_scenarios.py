@@ -1,7 +1,7 @@
-"""Authored v2 task families. No prefix/ID expansion or generated labels.
+"""编写 v2 任务族，不使用前缀或 ID 扩增，也不自动生成标签。
 
-Shared constructors serialize resources only; every goal, state and label below
-is authored explicitly. Family membership is annotation, never model input.
+共享构造函数仅序列化资源；下方每个目标、状态和标签均明确编写。
+任务族归属仅作为标注，不输入模型。
 """
 from .build_specification import candidate, pdf, state, failed_download
 
@@ -15,8 +15,8 @@ def s(goal, ready='', found='', done=(), failed='', budget=None, closed='', titl
 
 
 def families():
-    # Each tuple: split, family, (route, state, rationale). Rows in a family are
-    # related branches of one task; they must never be split as independent jobs.
+    # 每个元组依次为：数据划分、任务族、（路由、状态、理由）。同族样例是
+    # 同一任务的相关分支，不得作为独立任务拆分。
     return [
         ('validation','v2_citation_followup',[
             ('search',s('读完Paper A后，我想查找它的后续研究，先返回论文链接',ready='A'), '后续文献还没有候选。'),
@@ -67,8 +67,8 @@ def families():
             ('clarify',s('分析我在另一个窗口勾选的论文',ready='ABCDE'), '当前没有外部窗口选择记录。'),
         ]),
 
-        # Test families below have 10 distinct branches each, 20 examples/route
-        # overall. They are authored as task-state combinations, not paraphrases.
+        # 下方每个测试任务族有 10 个不同分支，每类路由总计 20 条样例；
+        # 样例按任务与状态组合编写，而非同义改写。
         ('test_candidate','v2_version_audit',[
             ('search',s('我已上传A的旧版，要找到明确标为v2的版本后核对实验变化',ready='A',titles={'A':'Paper A v1'}), '所需新版尚未找到。'),
             ('download_pdf',s('A-v1已上传，B是确认的A-v2，下载新版后核对实验变化',ready='A',found='AB',titles={'A':'Paper A v1','B':'Paper A v2'}), '版本明确，不能把旧版当新版。'),

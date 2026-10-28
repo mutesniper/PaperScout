@@ -1,4 +1,4 @@
-"""Opt-in real PDF download/parse; no model calls or private documents."""
+"""手动启用的真实 PDF 下载与解析检查，不调用模型或使用私有文档。"""
 import asyncio
 import json
 import httpx

@@ -1,0 +1,34 @@
+{
+  "train_count": 300,
+  "added_count": 72,
+  "train_class_counts": {
+    "answer": 52,
+    "compare": 44,
+    "search": 60,
+    "finish": 54,
+    "download_pdf": 45,
+    "clarify": 45
+  },
+  "added_class_counts": {
+    "search": 18,
+    "download_pdf": 10,
+    "compare": 10,
+    "finish": 15,
+    "answer": 12,
+    "clarify": 7
+  },
+  "old_train_sha256": "413033f7fd2015d7c00a38da39eca37538006814249daa287588973c627e6dbc",
+  "train_sha256": "1a70c7a69cd614a90e8ed9a9cd91cb16ead1aed83c0f294f3be189723432cdee",
+  "evaluation_hashes": {
+    "validation": "492e95fa5a14246268681aafdd4bddd3f1bc670d341c08f0b1631389e3748d8c",
+    "probe": "7c6c94f8d0ae1cf1b6ae18131b79fa0b8f135b7cb609846946c5df484be646cc",
+    "test_candidate": "292078ca8a08f6cc163f4ab0da351dad13ddfc72f8c4f3fb170fc3cb6690c02d"
+  },
+  "source": "synthetic_authored",
+  "review": "codex_self_reviewed",
+  "independent_review": "pending",
+  "limits": [
+    "与旧训练共享决策概念，任务族分支相关，不是独立人工基准。",
+    "旧诊断与模拟任务已被观察，本轮仅用于回归；120条测试候选在选模后首次评分。"
+  ]
+}

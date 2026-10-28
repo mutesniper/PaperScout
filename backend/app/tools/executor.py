@@ -1,4 +1,4 @@
-"""Task-scoped tool execution, evidence services and result bookkeeping."""
+"""任务范围内的工具执行、证据服务与结果记录。"""
 import httpx
 from fastapi import HTTPException
 from app.papers.schemas import ImportPaper
@@ -8,7 +8,7 @@ from app.rag.qa import Question, ask
 from app.tools.search import search_arxiv_first
 
 class JobRequest:
-    """Internal service context; job cancellation is owned by the task runner."""
+    """内部服务上下文，任务取消由任务执行器负责。"""
     def __init__(self, app):
         self.app = app
 

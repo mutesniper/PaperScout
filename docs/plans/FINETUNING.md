@@ -2,7 +2,7 @@
 
 [返回首页](../../README.md) · [项目计划](PLAN.md)
 
-状态：**第三组已确定为最终实验版本（开发验证31/36）；用户随后授权接入单Agent可选本地路由，默认云端模式保留。** 没有追加训练，也没有将接入解释为全部离线门槛通过。独立WSL环境使用PyTorch+PEFT；[最终评测](../evaluation/router/PROGRESSION_RUN.md)与[本地模式启动](../guides/LOCAL_ROUTER.md)分别记录模型能力和应用实现。
+状态：**当前采用第三组第 3 轮适配器，单 Agent 可切换本地实验路由，默认云端模式保留。** 第四组低学习率续训已完成，开发验证虽提高，但测试候选出现新的网络权限错误，模拟任务完成从19/20降到18/20，按预登记规则不采用。原120条测试候选已首次评分。详见[第四组报告](../evaluation/router/CONSERVATIVE_RUN.md)、[当前模型报告](../evaluation/router/PROGRESSION_RUN.md)及[本地模式启动](../guides/LOCAL_ROUTER.md)。
 
 ## 1. 目标与范围
 

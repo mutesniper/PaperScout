@@ -1,1 +1,1 @@
-"""Tool routing specifications and offline validation."""
+"""工具路由规格与离线校验。"""

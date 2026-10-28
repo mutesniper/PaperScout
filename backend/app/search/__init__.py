@@ -1,1 +1,1 @@
-"""PaperScout search modules."""
+"""PaperScout 论文检索模块。"""

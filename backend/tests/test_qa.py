@@ -97,7 +97,7 @@ def test_faiss_cache_reuse_and_content_model_invalidation(tmp_path):
         assert mode == 'semantic' and selected[0]['page'] == 2
         assert embedding.embed.await_count == 2
         await retrieve(document(), '支持什么语言', embedding, store, lock)
-        assert embedding.embed.await_count == 3  # only the query is embedded again
+        assert embedding.embed.await_count == 3  # 仅重新计算查询的向量
         embedding.name = 'changed-model'
         await retrieve(document(), '支持什么语言', embedding, store, lock)
         assert embedding.embed.await_count == 5

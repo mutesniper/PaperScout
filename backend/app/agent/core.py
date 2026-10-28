@@ -1,4 +1,4 @@
-"""Bounded model-directed tool loop, with durable local task records."""
+"""由模型驱动且受预算约束的工具循环，任务记录持久化到本地。"""
 import asyncio
 import time
 from dataclasses import asdict
@@ -54,7 +54,7 @@ async def execute_run(app, run):
 
     def persist(final=False):
         if not final and run['status'] not in ('queued','running'):
-            return  # Publish terminal/waiting state together with checkpoint and elapsed time.
+            return  # 终态或等待状态与检查点、累计耗时一起保存。
         run['usage'] = asdict(budget)
         run['router_checkpoint'] = {'counts':dict(counts), 'attempted':sorted(attempted),
             'candidates':dict(candidates), 'read_outcomes':dict(read_outcomes)}
@@ -93,7 +93,7 @@ async def execute_run(app, run):
             'user_replies':run.get('user_replies', [])}
 
     def finish(reason, completed=None):
-        # Research conclusions are rendered only from checked tool results.
+        # 研究结论仅展示经过校验的工具结果。
         partial = completed is False or any(e['status'] in ('error', 'partial') for e in run['events']) or not (run['papers'] or run['comparison'] or run['answers'])
         run.update(status='partial' if partial else 'completed',
                    message='任务已结束，请查看实际获取的论文、证据结果及执行记录。' if not partial else
@@ -114,7 +114,7 @@ async def execute_run(app, run):
             local_state = routing_state(run,candidates,read_outcomes,counts,limits,MAX_STEPS-run['steps']+1)
             budget.local_routes += 1
             route = await app.state.local_router.decide(local_state)
-            # Validate again here even if the service/client implementation is replaced.
+            # 即使替换了服务或客户端实现，此处仍需再次校验。
             from app.agent.router_contract import allowed_routes
             if route not in allowed_routes(local_state):
                 raise RouterError('小模型选择的操作不满足资源或预算条件，已拦截。')
@@ -169,7 +169,7 @@ async def execute_run(app, run):
             return {}
         rejected_in_a_row = 0
         attempted.add(signature)
-        counts[tool] += 1  # Failed calls also consume the allowance.
+        counts[tool] += 1  # 失败的调用也占用额度。
         await tool_executor.execute(action)
         if tool != 'download_pdf':
             last = run['events'][-1]

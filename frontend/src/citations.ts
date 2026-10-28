@@ -14,7 +14,7 @@ function hash(value: string) {
 export function makeCitation(paper: CitationPaper, format: 'text' | 'bibtex', accessed: string) {
   const authors = paper.authors.map(clean).filter(Boolean)
   const title = clean(paper.title)
-  // A source DOI may identify a published version rather than the arXiv version.
+  // 来源提供的 DOI 可能对应正式发表版本，而非 arXiv 版本。
   const arxiv = paper.arxiv_id || (paper.sources.includes('arxiv') ? paper.url.match(/arxiv\.org\/abs\/([^?#]+)/)?.[1] : undefined)
   const url = arxiv ? `https://arxiv.org/abs/${arxiv}` : paper.url
   if (format === 'text') {

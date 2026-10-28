@@ -49,7 +49,7 @@ def test_live_uses_production_qa_validation_and_keeps_failures(monkeypatch):
     data.cases = [data.cases[0], data.cases[3]]
     def handler(request):
         question = json.loads(json.loads(request.content)['messages'][1]['content'])['question']
-        # An invented citation must be rejected by the real ask() implementation.
+        # 真实 ask() 实现必须拒绝编造的引用。
         answer = {'supported': True, 'claims': [{'text': 'bad', 'evidence_ids': ['c999']}], 'reason': ''} if '方法' in question else {
             'supported': False, 'claims': [], 'reason': '未报告费用。'}
         return httpx.Response(200, json={'choices': [{'message': {'content': json.dumps(answer)}, 'finish_reason': 'stop'}],

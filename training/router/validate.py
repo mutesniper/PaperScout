@@ -1,4 +1,4 @@
-"""Validate specification structure/availability. Does not grade semantic labels."""
+"""校验规格结构与操作可用性，不对语义标签评分。"""
 import argparse
 import hashlib
 import json

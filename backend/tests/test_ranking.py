@@ -62,7 +62,7 @@ def test_api_ranks_before_truncation_and_reuses_raw_cache(tmp_path):
             assert client.get('/api/history/' + result['id']).json() == result
         assert fetch.await_count == 1 and fetch.call_args.args[-1] == 100
         client.post('/api/search', json={**body, 'candidate_limit': 100})
-        assert fetch.await_count == 1  # Client-supplied candidate limits are ignored.
+        assert fetch.await_count == 1  # 忽略客户端提供的候选数量上限。
 
 def test_old_history_and_invalid_inputs():
     old = SearchResult.model_validate({'id': 'old', 'created_at': '2024', 'request': {'plan': {'queries': ['x']}, 'limit': 10}, 'papers': [], 'sources': []})

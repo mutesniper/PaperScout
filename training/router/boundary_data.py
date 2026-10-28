@@ -1,4 +1,4 @@
-"""Second-run training-only decision boundary pairs; no heldout relabelling."""
+"""第二组训练专用的决策边界样例对，不修改留出集标签。"""
 import json
 from collections import Counter
 from .build_specification import candidate, pdf, state

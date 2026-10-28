@@ -81,7 +81,7 @@ class Store:
         result = []
         for (value,) in rows:
             data = json.loads(value)
-            # Content identity for selection lists, not title matching or history deletion.
+            # 选择列表按内容标识去重，不按标题匹配，也不删除历史。
             pages = {}
             for section in data.get('sections', []):
                 for fragment in section.get('fragments', []):

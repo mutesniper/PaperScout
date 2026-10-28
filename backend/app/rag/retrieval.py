@@ -1,4 +1,4 @@
-"""Single-document retrieval; vector caches are keyed by content and provider."""
+"""单篇文档检索，向量缓存按内容与服务商区分。"""
 import hashlib
 import json
 import math
@@ -54,7 +54,7 @@ def chunks_for(doc):
     for section in doc.sections:
         for fragment in section.fragments:
             text = ' '.join(fragment.text.split())
-            # Overlap preserves local context at boundaries. Never cross pages.
+            # 重叠片段保留边界处的上下文，但不跨页。
             for start in range(0, len(text), 850):
                 part = text[start:start + 1000]
                 if len(part) >= 10:
@@ -71,10 +71,10 @@ MAX_EVIDENCE_CHARS = 1600
 
 
 def readable_evidence(doc, selected):
-    """Expand each indexed excerpt by <=300 chars per side, within its fragment.
+    """在原片段范围内，将每条索引摘录向两侧各扩展至多 300 个字符。
 
-    Keep original retrieval vectors, IDs and rankings. Very long sentences and
-    page breaks may remain incomplete; never invent text or discard evidence.
+    保留原始检索向量、ID 和排名。超长句和跨页断句可能仍不完整；
+    不编造文本，也不丢弃证据。
     """
     wanted = {c['id'] for c in selected}
     if not wanted:
@@ -119,8 +119,8 @@ def tokens(text):
 
 
 def lexical_scores(chunks, question):
-    # Small explicit bilingual hints keep common Chinese questions usable without
-    # an embedding service. This is not general cross-language semantic search.
+    # 少量明确的双语提示让常见中文问题在没有
+    # 嵌入服务时仍可检索，但不提供通用的跨语言语义搜索。
     hints = {'方法': 'method approach framework', '实验': 'experiment evaluation',
         '结果': 'results performance', '局限': 'limitation limitations', '贡献': 'contribution contributions',
         '数据集': 'dataset benchmark', '指标': 'metric accuracy precision', '训练': 'training', '推理': 'inference'}
@@ -166,7 +166,7 @@ async def retrieve(doc, question, embedding, store, lock):
     index = faiss.IndexFlatIP(matrix.shape[1])
     index.add(matrix)
     distances, matches = index.search(query, min(12, len(chunks)))
-    # Mix lexical and semantic rankings without treating distance as proof.
+    # 融合关键词和语义排名，不把向量距离当作事实证据。
     ranks = {int(i): 1 / (60 + rank) for rank, (i, score) in
              enumerate(zip(matches[0], distances[0]), 1) if i >= 0 and score > 0}
     for rank, i in enumerate(sorted(range(len(chunks)), key=lambda i: scores[i], reverse=True), 1):

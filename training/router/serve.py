@@ -1,4 +1,4 @@
-"""Local-only HTTP service for the final route adapter; no cloud/model downloads."""
+"""仅供本机使用的最终路由适配器 HTTP 服务，不调用云端或下载模型。"""
 import argparse
 import hashlib
 import json
@@ -20,7 +20,7 @@ def handler_for(predict):
     lock = threading.Lock()
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_):
-            pass  # Do not log task text or client addresses.
+            pass  # 不记录任务文本或客户端地址。
 
         def send_json(self, status, value):
             data = json.dumps(value,ensure_ascii=False).encode()
@@ -75,7 +75,7 @@ def main():
     base_path = check_model(args.model_path)
     if file_sha256(args.adapter_path/'adapter_model.safetensors') != ADAPTER_SHA256:
         raise ValueError('Expected the final epoch-3 adapter weights')
-    # Use the pinned file hashes from the completed training run.
+    # 使用已完成训练所固定的文件哈希。
     registration = json.loads(Path(__file__).with_name('runtime_profile.json').read_text())
     config = json.loads((args.adapter_path/'adapter_config.json').read_text())
     for key in ('base_model_name_or_path','revision'):

@@ -1,4 +1,4 @@
-"""Build a portable release from the final adapter, leaving training outputs intact."""
+"""从最终适配器构建可移植的发布包，保留原始训练产物。"""
 import hashlib
 import json
 import shutil
@@ -45,7 +45,7 @@ def main():
     for name in ('restore.py','README.md','RELEASE_NOTES.md','requirements.txt','THIRD_PARTY.md'):
         shutil.copyfile(templates/name,folder/name)
     shutil.copyfile(Path(__file__).with_name('requirements-smoke.lock.txt'),folder/'environment.lock.txt')
-    # Only runtime types and functions; dataset authoring metadata isn't a runtime dependency.
+    # 仅包含运行时类型和函数，数据集编写元信息不是运行依赖。
     contract = Path(__file__).with_name('contract.py').read_text(encoding='utf-8').split('\nclass Example(Strict):')[0]
     (folder/'router_contract.py').write_text(contract.rstrip()+'\n',encoding='utf-8')
     examples = read_examples(ROOT/'validation.jsonl')

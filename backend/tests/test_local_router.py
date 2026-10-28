@@ -45,7 +45,7 @@ def test_clarification_resume_survives_restart_and_keeps_budget(tmp_path):
         identifier=begin(client)
         paused=wait(client,identifier)
         assert paused['status']=='needs_input' and paused['steps']==1
-        # Persist a consumed allowance as if an earlier tool had run before the pause.
+        # 保存已消耗额度，模拟暂停前已执行过工具的情况。
         paused['router_checkpoint']['counts']['search']=2
         paused['router_checkpoint']['attempted']=['prior-action']
         paused['usage']['generations']=3
@@ -123,7 +123,7 @@ def test_http_identity_and_invalid_route_are_checked(monkeypatch):
 
 
 def test_runtime_contract_matches_trained_prompt():
-    # Keep the backend independent of training imports in deployed containers.
+    # 确保部署容器中的后端不依赖训练模块导入。
     import importlib.util
     from pathlib import Path
     file=Path(__file__).resolve().parents[2]/'training/router/contract.py'

@@ -1,4 +1,4 @@
-"""Build the real-paper dataset from local extracted papers, without modifying the library."""
+"""使用本地已提取论文构建真实论文数据集，不修改论文库。"""
 import argparse
 import hashlib
 import json
@@ -19,7 +19,7 @@ def text_hash(doc):
 
 def prepare(database, manifest_path, output):
     manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
-    # Read-only connection: never creates or updates the application database.
+    # 使用只读连接，不创建或更新应用数据库。
     with sqlite3.connect(database.resolve().as_uri() + '?mode=ro', uri=True) as db:
         available = {}
         for (payload,) in db.execute('SELECT payload FROM readings'):

@@ -1,1 +1,1 @@
-"""Reproducible evaluation tools, separate from the application UI."""
+"""可复现的评测工具，独立于应用界面。"""

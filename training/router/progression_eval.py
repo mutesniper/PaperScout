@@ -1,4 +1,4 @@
-"""One post-selection comparison on the frozen progression probe, no training."""
+"""选模后在冻结的进度诊断集上执行一次对照，不进行训练。"""
 import argparse
 import hashlib
 import json

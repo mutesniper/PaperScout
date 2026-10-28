@@ -1,4 +1,4 @@
-"""Bounded subprocess entry point for untrusted PDF text extraction."""
+"""在资源受限的子进程中提取不可信 PDF 文本的入口。"""
 import io
 import json
 import re

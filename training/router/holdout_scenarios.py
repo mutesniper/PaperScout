@@ -1,7 +1,7 @@
-"""Legacy v1 scenarios. ALL are training/development data in v2.
+"""旧版 v1 场景，在 v2 中全部作为训练或开发数据。
 
-Keep original IDs and definitions for reproducibility of the retirement ledger.
-Never use these old split names as current held-out assignments.
+保留原始 ID 和定义，以复现旧数据退役记录。
+不得根据旧划分名称将这些样例视为当前留出集。
 """
 from .build_specification import candidate, pdf, state, failed_download
 
@@ -11,7 +11,7 @@ def seeds(split):
     b = pdf('r-b', 'p-b', 'Paper B')
     c = pdf('r-c', 'p-c', 'Paper C')
     ca, cb = candidate('p-a','Paper A'), candidate('p-b','Paper B')
-    # Validation combines explicit user constraints with resource availability.
+    # 验证样例同时考虑明确的用户约束和资源可用性。
     validation = [
         ('search','v_additional_literature',state('已有 Paper A 和 Paper B，另外找一篇不同的相关论文，先只返回链接',pdfs=[a,b]),'已有全文不是本次要求的新论文。'),
         ('search','v_unavailable_named',state('查找 Paper C 的全文，然后解释方法；不要分析 Paper A',pdfs=[a],candidates=[ca]),'指定对象C尚未找到，不能重复下载或分析A。'),
@@ -26,7 +26,7 @@ def seeds(split):
         ('clarify','v_ambiguous_subset',state('从四篇里比较刚才选中的三篇',pdfs=[a,b,c,pdf('r-d','p-d','Paper D')]), '当前状态没有先前的选择信息。'),
         ('clarify','v_unspecified_baseline',state('比较 Paper A 与我的基线方法',pdfs=[a]), '用户的基线方法没有提供，不能随意选论文替代。'),
     ]
-    # Test candidates are authored separately; only structural checks are run now.
+    # 测试候选独立编写，此处仅进行结构检查。
     test = [
         ('search','t_more_than_found',state('Find four different papers about tool learning, links only.',candidates=[ca,cb]), '只有两个候选，仍未达到四篇目标。'),
         ('search','t_restart_topic',state('此前的工具学习任务结束了。现在帮我搜索图像压缩论文，只列链接',pdfs=[a,b],results=['已完成工具学习论文对比']), '旧任务结果不能终止新的检索目标。'),

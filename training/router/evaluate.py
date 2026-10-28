@@ -1,4 +1,4 @@
-"""Offline evaluation with raw-output scoring, shared denominators and failures."""
+"""按原始输出进行离线评分，统一统计分母并保留失败记录。"""
 import argparse
 import json
 from pathlib import Path

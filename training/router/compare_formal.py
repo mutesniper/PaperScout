@@ -1,4 +1,4 @@
-"""Summarize completed validation runs without model calls or test access."""
+"""汇总已完成的验证结果，不调用模型或访问测试集。"""
 import argparse
 import json
 from pathlib import Path

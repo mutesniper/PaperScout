@@ -1,4 +1,4 @@
-"""Internal Agent tools; HTTP and MCP continue to reuse the business services."""
+"""内部智能体工具，HTTP 与 MCP 继续复用业务服务。"""
 from app.tools.executor import ToolExecutor
 from app.tools.schemas import ACTION, action_schema, parse_action
 

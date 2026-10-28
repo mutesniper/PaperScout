@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
-// Deterministic UI fixtures only; application requests always use real providers.
+// 仅界面测试使用固定样例，应用请求始终访问真实来源。
 test.beforeEach(async ({ page }) => {
-  // Serve the real production build in-browser without opening a local socket.
+  // 在浏览器中提供真实生产构建，无需监听本地端口。
   await page.route('http://paperscout.test/**', async route => {
     const path = new URL(route.request().url()).pathname
     if (path.startsWith('/api/')) return route.fulfill({ status: 404, json: { detail: 'unmocked test endpoint' } })

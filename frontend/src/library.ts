@@ -1,6 +1,6 @@
 export type LibraryPaper = { id: string; title: string; kind: string; content_key?: string | null }
 
-// Keep history IDs intact; collapse only equal extracted content in PDF pickers.
+// 保留历史记录 ID，仅在 PDF 选择器中合并提取内容相同的条目。
 export function uniquePDFs<T extends LibraryPaper>(library: T[], selected: string[] = []): T[] {
   const groups = new Map<string, T>()
   for (const paper of library) {

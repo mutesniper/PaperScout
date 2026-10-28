@@ -1,7 +1,7 @@
-"""Training-only task progress boundaries and a frozen, separately authored probe.
+"""训练专用的任务进度边界样例，以及独立编写并冻结的诊断集。
 
-The probe is synthetic/self-reviewed, not an independent human benchmark.
-Neither legacy validation labels nor the unopened test candidate split change.
+诊断集为合成且自行审核的数据，不是独立人工基准。
+不修改已有验证标签或尚未评测的测试候选划分。
 """
 import json
 from collections import Counter
@@ -129,7 +129,7 @@ def additions():
 
 
 def probe():
-    """New tasks, fixed before training; never used for checkpoint selection."""
+    """新增任务在训练前冻结，不用于选择检查点。"""
     p = pdf('r_iriscope','p_iriscope','Iriscope: Retinal Vessel Segmentation')
     q = pdf('r_optima','p_optima','Optima: Fundus Image Restoration')
     r = pdf('r_clinic','p_clinic','Clinic: Clinical Note Coding')
@@ -207,7 +207,7 @@ def build():
         write_jsonl(DEST/f'{name}.jsonl', [e.model_dump() for e in rows])
     write_jsonl(DEST/'train.messages.jsonl', [{'messages':model_messages(e.state)+[
         {'role':'assistant','content':e.expected.model_dump_json()}]} for e in combined])
-    # Flag lexical neighbours for review, not a claim of semantic independence.
+    # 标记字面相似样例以供审核，不据此宣称语义独立。
     near = neighbours({'new_train':new, 'probe':audit, **legacy})
     manifest = {'total_rows':len(combined), 'added_rows':len(new), 'probe_rows':len(audit),
         'prior_labels_changed':0, 'class_counts':dict(Counter(e.expected.route for e in combined)),

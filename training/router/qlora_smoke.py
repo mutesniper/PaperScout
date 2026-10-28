@@ -1,4 +1,4 @@
-"""Bounded QLoRA engineering smoke. No validation/test scoring or deployment."""
+"""资源受限的 QLoRA 工程冒烟测试，不进行验证集或测试集评分，也不部署。"""
 import argparse
 import hashlib
 import importlib.metadata
@@ -27,7 +27,7 @@ def encode_supervised(tokenizer,example,maximum=512):
         end=full.index(tokenizer.eos_token_id,boundary)+1
     except ValueError as exc:
         raise ValueError('Assistant termination token missing') from exc
-    # Ignore template whitespace after EOS; do not truncate any prompt/content.
+    # 忽略 EOS 后的模板空白，不截断提示词或正文。
     full=full[:end]
     if len(full)>maximum:
         raise ValueError(f'{example.id}: {len(full)} tokens exceeds {maximum}; no truncation')
@@ -138,7 +138,7 @@ def main():
     torch.manual_seed(20261028)
     output.mkdir(parents=True,exist_ok=False)
     selected=smoke_examples(rows)
-    # Include the actual longest input, rather than only convenient short cases.
+    # 纳入实际最长输入，不只选用便于运行的短样例。
     longest=max(rows,key=lambda e:len(encoded[e.id]['input_ids']))
     if longest.id not in {e.id for e in selected}:
         index=next(i for i,e in enumerate(selected) if e.expected.route==longest.expected.route)

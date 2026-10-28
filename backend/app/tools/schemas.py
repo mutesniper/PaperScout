@@ -1,4 +1,4 @@
-"""Shared action contracts for single and multi-agent tool selection."""
+"""单智能体与多智能体选择工具时共用的动作契约。"""
 from copy import deepcopy
 from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
@@ -44,14 +44,14 @@ ACTION = TypeAdapter(Annotated[SearchAction | ReadAction | CompareAction | Answe
 
 
 def parse_action(raw, adapter=ACTION):
-    # Accept older model responses, but never advertise the ambiguous name again.
+    # 兼容旧版模型响应，但不再向模型提供有歧义的旧名称。
     if isinstance(raw, dict) and raw.get('tool') == 'read':
         raw = {**raw, 'tool': 'download_pdf'}
     return adapter.validate_python(raw)
 
 
 def action_schema(adapter, allowed):
-    """Expose currently usable actions; runtime ID/budget checks remain authoritative."""
+    """提供当前可用的动作，最终仍以运行时的 ID 和预算校验为准。"""
     schema = deepcopy(adapter.json_schema())
     mapping = schema['discriminator']['mapping']
     removed = {ref for tool, ref in mapping.items() if tool not in allowed}

@@ -1,4 +1,4 @@
-"""Materialize 60 authored specification cases, NOT a train/test dataset."""
+"""生成 60 条编写好的规格样例，不作为训练或测试数据集。"""
 import json
 from pathlib import Path
 
@@ -29,8 +29,8 @@ def failed_download(key='p1'):
 
 
 def cases():
-    # Group IDs deliberately connect steps of the same task across route classes.
-    # Any future derived data must keep the entire group within one split.
+    # 组 ID 将同一任务中不同路由类别的步骤关联起来。
+    # 后续派生数据必须将整组保留在同一数据划分中。
     rows = [
         ('search', 'tiny_compare', state('找到 TinyAgent 和 Toolformer，比较两篇论文的方法'), '没有候选或PDF，先获取论文。', ['trajectory']),
         ('search', 'slm_links', state('找三篇小模型调用工具的论文，只要链接'), '目标可直接搜索，不必澄清年份。', ['default_values']),

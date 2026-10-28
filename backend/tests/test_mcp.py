@@ -79,7 +79,7 @@ def test_protocol_workflow_and_validation(caplog):
             failed = await client.call_tool('get_paper', {'reading_id': 'missing'})
             assert failed.isError
             assert 'secret-key' not in str(failed)
-            assert len(calls) == count + 1  # No retries.
+            assert len(calls) == count + 1  # 不重试。
     asyncio.run(run())
     assert 'secret-key' not in caplog.text
     assert 'PRIVATE FULL TEXT' not in caplog.text

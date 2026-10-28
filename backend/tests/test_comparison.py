@@ -39,7 +39,7 @@ def test_goal_uses_introduction_when_no_abstract_heading():
 def test_goal_comparison_skips_fulltext_embedding(tmp_path):
     with TestClient(create_app(tmp_path / 'db')) as client:
         prepare(client)
-        # Use separate long PDFs with explicit abstract sections.
+        # 使用独立的长 PDF 样例，包含明确的摘要章节。
         for identifier in ('survey1', 'survey2'):
             doc = document(identifier)
             doc.sections[0].title = 'Abstract'
@@ -121,7 +121,7 @@ def test_selection_validation_and_service_failure(tmp_path):
 def test_no_hits_and_model_insufficient_evidence(tmp_path):
     with TestClient(create_app(tmp_path / 'db')) as client:
         prepare(client)
-        # Research-goal terms are absent in both fixtures: no generation needed.
+        # 两个测试样例均不含研究目标词语，无需调用生成模型。
         response = client.post('/api/comparisons', json={'reading_ids': ['paper', 'other'], 'dimensions': ['goal']})
         assert response.status_code == 200
         assert all(not cell['supported'] for cell in response.json()['cells'])

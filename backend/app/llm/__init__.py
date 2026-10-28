@@ -1,1 +1,1 @@
-"""PaperScout llm modules."""
+"""PaperScout 大模型适配模块。"""

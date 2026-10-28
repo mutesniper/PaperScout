@@ -1,4 +1,4 @@
-"""Training-only counterfactual additions. Existing v2 splits stay byte-identical."""
+"""仅向训练集补充反事实样例，现有 v2 数据划分保持字节一致。"""
 import json
 import random
 from collections import Counter
@@ -20,7 +20,7 @@ def additions():
     compare_goal = '仅对照Atlas与Beacon的实验结果，不要用单篇解释代替。'
     answer_goal = '请依据Atlas原文说明它的消融实验。'
     rows = [
-        # Same literal goal; only the structured state changes.
+        # 目标文本相同，仅改变结构化状态。
         ('cf_compare','search',s(compare_goal),'没有候选或全文，先查找。'),
         ('cf_compare','search',s(compare_goal,ready=[a]),'缺少Beacon候选，不能直接对比。'),
         ('cf_compare','download_pdf',s(compare_goal,found=[ca,cb]),'候选不等于全文，先下载。'),
@@ -117,7 +117,7 @@ def build():
 
 
 def smoke_examples(rows, per_class=8):
-    """Stratified, deterministic engineering probe, never select using model scores."""
+    """分层且确定性的工程探测样例，不根据模型得分选择。"""
     from .contract import ROUTES
     rng=random.Random(20261028)
     selected=[]

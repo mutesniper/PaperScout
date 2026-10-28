@@ -21,7 +21,7 @@ router = APIRouter(prefix='/api/readings')
 
 
 class DownloadAddressError(ValueError):
-    """Safe diagnostic for resolver/policy failures, without credentials."""
+    """记录解析或安全策略失败的诊断信息，不包含凭据。"""
 
 
 async def wait_operation(request, operation, timeout):
@@ -75,13 +75,13 @@ async def public_address(url):
 
 
 async def download_pdf(url, client):
-    # arXiv metadata often contains legacy HTTP links. Try HTTPS on the same host;
-    # never send an HTTP request or follow a later downgrade redirect.
+    # arXiv 元数据常含旧版 HTTP 链接，尝试同一主机的 HTTPS 地址；
+    # 不发送 HTTP 请求，也不跟随降级重定向。
     initial = httpx.URL(url)
     if initial.scheme == 'http' and initial.port in (None, 80):
         url = str(initial.copy_with(scheme='https', port=None))
-    # Pin the validated IP at connection time; keep the original TLS name and Host.
-    # This also prevents a public-to-private DNS rebind between validation and fetch.
+    # 连接时固定已校验的 IP，保留原始 TLS 名称和 Host。
+    # 这也防止校验与下载之间通过 DNS 重绑定将公网地址换成内网地址。
     for _ in range(5):
         hostname, address = await public_address(url)
         target = httpx.URL(url).copy_with(host=address)
@@ -108,7 +108,7 @@ async def download_pdf(url, client):
 
 
 async def download_with_retry(url, client):
-    """One timeout retry; caller retains the shared total deadline and cancellation."""
+    """超时后重试一次；总截止时间和取消逻辑仍由调用方控制。"""
     for attempt in range(2):
         try:
             async with asyncio.timeout(25):
@@ -128,7 +128,7 @@ def get_reading(request, reading_id):
 
 
 async def save_pdf(request, data, title, origin, source_url=None):
-    # Bound concurrent parsing and isolate malformed documents from the API process.
+    # 限制并发解析数量，将异常文档解析与 API 进程隔离。
     async with request.app.state.reading_slots:
         parsed = await wait_operation(request, extract_pdf(data), 45)
     doc = Reading(id=str(uuid4()), title=title, kind='pdf', origin=origin,
@@ -184,7 +184,7 @@ async def import_paper(body: ImportPaper, request: Request):
         raise HTTPException(422, '没有公开全文链接，可以上传你有权使用的 PDF。')
     try:
         async with asyncio.timeout(50):
-            # No environment proxies or credentials are forwarded to paper hosts.
+            # 不向论文主机转发环境代理配置或凭据。
             async with httpx.AsyncClient(timeout=20, trust_env=False) as client:
                 data, url = await wait_operation(request, download_with_retry(paper.fulltext_url, client), 50)
     except DownloadAddressError as exc:
@@ -222,8 +222,8 @@ def check_evidence(evidence, fragments):
 
 
 def normalize_summary_evidence(payload, fragments):
-    # A long, verified verbatim quote can safely be shortened for display. Never
-    # shorten an unmatched quote: that could hide an invented suffix.
+    # 已核实逐字匹配的长引用可以缩短显示，但不能
+    # 缩短未匹配的引用，否则可能掩盖末尾编造的内容。
     result = deepcopy(payload)
     if not isinstance(result, dict):
         return result
@@ -243,7 +243,7 @@ def normalize_summary_evidence(payload, fragments):
 
 
 async def build_document_summary(doc, model):
-    # Every extracted fragment participates; never silently summarize only a prefix.
+    # 所有提取片段均参与总结，不能悄悄只总结开头部分。
     fragments = [fragment for section in doc.sections for fragment in section.fragments]
     groups, current, size = [], [], 0
     for fragment in fragments:
@@ -286,7 +286,7 @@ async def summarize(reading_id: str, request: Request):
     except (ValueError, KeyError, TypeError, IndexError, ValidationError) as exc:
         reason = str(exc) if type(exc) is ValueError else ''
         code = 'truncated' if reason == 'truncated summary' else 'evidence' if reason == 'unverifiable evidence' else 'format'
-        # Log only schema paths/error categories, never provider text or source input.
+        # 仅记录结构字段路径和错误类别，不记录服务商返回文本或原始输入。
         fields = []
         if isinstance(exc, ValidationError):
             fields = [{ 'path': '.'.join(str(p) for p in error['loc']), 'type': error['type'] }

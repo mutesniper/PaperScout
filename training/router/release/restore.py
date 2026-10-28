@@ -1,4 +1,4 @@
-"""Verify and load the PaperScout tool-router adapter without the project repo."""
+"""无需项目仓库即可校验并加载 PaperScout 工具路由适配器。"""
 import argparse
 import hashlib
 import json
@@ -66,7 +66,7 @@ def main():
     base = AutoModelForCausalLM.from_pretrained(args.base_model, local_files_only=True, trust_remote_code=False,
                                                torch_dtype=torch.bfloat16, quantization_config=quantization,
                                                device_map={'': 0})
-    # Match the non-quantized parameter dtypes used in the original evaluation.
+    # 非量化参数的数据类型与原始评测保持一致。
     base = prepare_model_for_kbit_training(base, use_gradient_checkpointing=False)
     model = PeftModel.from_pretrained(base, ROOT / 'adapter', local_files_only=True)
     model.eval()

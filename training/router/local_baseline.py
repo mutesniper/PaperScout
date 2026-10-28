@@ -1,6 +1,6 @@
-"""Offline-only original Qwen3 routing evaluation. No adapter or cloud fallback.
+"""仅离线评测原始 Qwen3 路由，不加载适配器，也不回退到云端。
 
-ML dependencies load lazily: preflight and unit tests use the backend venv.
+机器学习依赖延迟加载，预检与单元测试使用后端虚拟环境。
 """
 import argparse
 import hashlib
@@ -25,7 +25,7 @@ GREEDY_OPTIONS = {'do_sample':False,'num_beams':1,'temperature':1.0,'top_p':1.0,
 
 
 def generate_greedy(model,tokens,decoding):
-    # Explicit generate kwargs override checkpoint defaults in Transformers 4.51.
+    # 在 Transformers 4.51 中，显式生成参数会覆盖检查点默认值。
     return model.generate(**tokens,generation_config=decoding,**GREEDY_OPTIONS)
 
 
@@ -44,7 +44,7 @@ def check_model(path):
     shards = set(index.get('weight_map',{}).values())
     if shards != set(FILES[-3:]):
         raise ValueError('Unexpected or incomplete checkpoint shard index')
-    # Catch saved HTML/LFS pointer files before trying to allocate GPU memory.
+    # 分配显存前，先检查模型文件是否误存为 HTML 或 LFS 指针。
     for name in FILES[-3:]:
         with (path/name).open('rb') as handle:
             prefix = handle.read(128).lstrip().lower()
@@ -156,7 +156,7 @@ def main():
             tokens = {key:value.to('cuda:0') for key,value in tokens.items()}
             with torch.inference_mode():
                 return generate_greedy(model,tokens,decoding)
-        # Warm up on an unlabelled input, excluded from scoring and timing.
+        # 使用无标签输入预热，不计入评分或计时。
         infer(encoded[0][0])
         torch.cuda.synchronize()
         torch.cuda.reset_peak_memory_stats()
@@ -186,7 +186,7 @@ def main():
         print(json.dumps({'status':'complete','count':len(outputs),
             'acceptable_accuracy':report['acceptable_accuracy'],'report':str(output/'report.json')},ensure_ascii=False))
     except BaseException as exc:
-        # Never present an interrupted subset as a completed baseline.
+        # 不得将中断后得到的部分结果报告为完整基线。
         (output/'incomplete.json').write_text(json.dumps({'status':'incomplete',
             'completed':len(predictions),'requested':len(examples),'error_type':type(exc).__name__},indent=2),encoding='utf-8')
         raise

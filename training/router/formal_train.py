@@ -1,4 +1,4 @@
-"""One preregistered three-epoch QLoRA run; validation only, no deployment."""
+"""执行一组预先登记的三轮 QLoRA 训练，仅验证，不部署。"""
 import argparse
 import hashlib
 import importlib.metadata
@@ -133,7 +133,7 @@ def main():
     try:
         torch.manual_seed(CONFIG['seed'])
         base=load_base(path,True)
-        # Re-measure base with identical kbit preparation/dtypes, without adapter.
+        # 采用相同低位量化准备流程和数据类型，重新评测未加载适配器的基座。
         baseline=evaluate(base,tokenizer,validation,output/'base-validation.json')
         print(json.dumps({'base_accuracy':baseline['acceptable_accuracy']}),flush=True)
         model=get_peft_model(base,LoraConfig(task_type=TaskType.CAUSAL_LM,r=8,lora_alpha=16,

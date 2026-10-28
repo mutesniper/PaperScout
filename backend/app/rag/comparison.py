@@ -1,4 +1,4 @@
-"""Evidence-backed comparisons of a bounded set of local PDFs."""
+"""对数量受限的本地 PDF 进行有原文证据支撑的比较。"""
 from datetime import datetime, timezone
 from typing import Literal
 from uuid import uuid4
@@ -21,14 +21,14 @@ DIMENSIONS = {
 
 
 def comparison_chunks(doc, dimension, ranked):
-    """Use structural evidence for goals, not incidental 'research' mentions."""
+    """研究目标优先使用章节结构对应的证据，不依赖偶然出现的 research 一词。"""
     back_matter = re.compile(r'^(?:\d+[.\s]*)?(?:references|bibliography|author biographies|biographies|参考文献|作者简介)\b', re.I)
     eligible = readable_evidence(doc, [chunk for chunk in chunks_for(doc) if not back_matter.search(chunk['section'].strip())])
     allowed = {chunk['id'] for chunk in eligible}
     ranked = [chunk for chunk in ranked if chunk['id'] in allowed]
     if dimension != 'goal':
         return ranked[:2]
-    # Headings may be embedded in page text when PDF section parsing fails.
+    # PDF 章节解析失败时，标题可能仍包含在页面文本中。
     abstract = re.compile(r'\babstract\b|摘要', re.I)
     for i, chunk in enumerate(eligible):
         if chunk['page'] <= 3 and (abstract.search(chunk['section']) or abstract.search(chunk['text'])):
@@ -92,8 +92,8 @@ async def compare(body: ComparisonRequest, request: Request):
         for doc in docs:
             for dimension in body.dimensions:
                 label, query = DIMENSIONS[dimension]
-                # Structural goal evidence was already preferred after retrieval.
-                # Select it first to avoid indexing entire surveys just to read an abstract.
+                # 检索后已优先排列用于研究目标的结构性证据。
+                # 优先选用这些证据，避免为了读取摘要而索引整篇综述。
                 chunks = comparison_chunks(doc, dimension, []) if dimension == 'goal' else []
                 if chunks:
                     modes.add('structural')
@@ -107,7 +107,7 @@ async def compare(body: ComparisonRequest, request: Request):
                 sources[(doc.id, dimension)] = {chunk['id']: chunk for chunk in excerpts}
                 material.append({'reading_id': doc.id, 'title': doc.title,
                     'dimension': dimension, 'label': label, 'excerpts': excerpts})
-        # Empty retrieval slots are deterministic and need no model completion.
+        # 无检索结果的位置已确定，无需请求模型补全。
         available = [item for item in material if item['excerpts']]
         result = Output.model_validate(await model.compare_papers(available)) if available else Output(cells=[])
         expected = {(item['reading_id'], item['dimension']) for item in available}

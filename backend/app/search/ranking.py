@@ -1,4 +1,4 @@
-"""Local candidate ranking. No inferred dates, citations or semantic scores."""
+"""本地候选排序，不推测日期、引用量或语义得分。"""
 from app.search.providers import deduplicate
 
 def source_candidates(candidates, source):
@@ -10,7 +10,7 @@ def source_candidates(candidates, source):
 def rank_candidates(papers, mode):
     for paper in papers:
         paper.relevance_score = sum(1 / (60 + rank) for rank in paper.source_ranks.values())
-    # Stable ties retain first-seen order; a single source keeps its original order.
+    # 同分时保持首次出现的顺序；单一来源保留原始顺序。
     relevant = sorted(papers, key=lambda p: p.relevance_score, reverse=True)
     if mode == 'relevance':
         return relevant
@@ -19,7 +19,7 @@ def rank_candidates(papers, mode):
     direction = -1 if mode == 'newest' else 1
     def date_key(p):
         year = p.publication_date.year if p.publication_date else p.year
-        # Year-only entries follow exact dates in the same year, in either direction.
+        # 无论升序还是降序，仅有年份的记录都排在同年日期完整的记录之后。
         return (year is None, direction * (year or 0), p.publication_date is None,
                 direction * (p.publication_date.toordinal() if p.publication_date else 0))
     return sorted(relevant, key=date_key)

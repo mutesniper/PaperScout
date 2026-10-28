@@ -214,7 +214,7 @@ test('PDF pickers deduplicate content while preserving distinct same-title paper
   await page.getByText('使用已上传的 PDF（可选，最多 5 篇）', { exact: true }).click()
   const agent = page.getByRole('region', { name: '研究任务助手', exact: true })
   await expect(agent.getByRole('checkbox', { name: doc.title, exact: true })).toHaveCount(2)
-  // Full history remains available, including the older reading ID.
+  // 保留完整历史，包括较早的阅读记录 ID。
   await expect(page.getByLabel('最近摘要').locator('option[value="old"]')).toHaveCount(1)
   const field = agent.getByLabel('执行模式')
   const selectBounds = await field.boundingBox()

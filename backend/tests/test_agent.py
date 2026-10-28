@@ -241,7 +241,7 @@ def test_arxiv_first_search_policy(count, public, failed, fallback):
         assert plan.queries == ['small model tools', 'extra query']
         assert result.request.limit == 10 and len(result.papers) <= 10
         if fallback and count:
-            assert result.candidate_count == count  # Cross-source duplicate merged.
+            assert result.candidate_count == count  # 跨来源重复记录已合并。
             assert set(result.papers[0].source_ranks) == {'arxiv', 'semantic_scholar'}
         if not fallback:
             assert any('跳过 Semantic Scholar' in event[2] for event in events)

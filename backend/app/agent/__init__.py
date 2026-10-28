@@ -1,1 +1,1 @@
-"""PaperScout agent modules."""
+"""PaperScout 智能体模块。"""

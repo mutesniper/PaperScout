@@ -1,7 +1,7 @@
-"""Frozen, deliberately simple heuristic. No access to labels or sample IDs.
+"""冻结的简单启发式规则，不读取标签或样例 ID。
 
-This is a reference baseline, not an application router. Broad title relevance,
-multi-goal completion and ambiguous references are deliberately not solved here.
+仅作为参考基线，不用作应用路由。这里不处理宽泛的标题相关性、
+多目标完成判断或有歧义的指代。
 """
 import re
 
@@ -15,7 +15,7 @@ def route(state: State) -> str:
     if allowed == {'finish'}:
         return 'finish'
     goal = state.goal.casefold()
-    # Look only at the user's goal for intent; never treat titles as instructions.
+    # 仅根据用户目标判断意图，不将论文标题视为指令。
     compare = bool(re.search(r'比较|对比|compare|contrast|difference', goal))
     links_only = bool(re.search(r'只要链接|只列链接|只找.*链接|只.*书目|links only|only.*links', goal))
     search = bool(re.search(r'找|搜|查找|find|search|look for', goal))

@@ -1,4 +1,4 @@
-"""Read-only stdio smoke check against a running backend; no model calls."""
+"""对运行中的后端执行只读 stdio 冒烟检查，不调用模型。"""
 import argparse
 import asyncio
 from pathlib import Path

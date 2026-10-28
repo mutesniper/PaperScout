@@ -1,4 +1,4 @@
-"""Run from the repository root: python backend/evaluation/run.py."""
+"""在仓库根目录运行：python backend/evaluation/run.py。"""
 import argparse
 import asyncio
 import hashlib
@@ -76,7 +76,7 @@ def retrieval_metrics(selected, case):
 
 
 class Meter:
-    """Only provider-reported usage. Never store URLs, headers or credentials."""
+    """仅记录服务商报告的用量，不保存 URL、请求头或凭据。"""
     def __init__(self):
         self.calls = []
         self.pending = {}
@@ -104,7 +104,7 @@ class Meter:
             **{key: numeric(usage.get(key)) for key in ('prompt_tokens', 'completion_tokens', 'total_tokens')})
 
     def totals(self):
-        # Missing usage is unknown, not zero; no double counting reasoning subfields.
+        # 缺失用量表示未知而非零；不重复计算推理用量子字段。
         return {kind: {'requests': len(rows), 'total_tokens':
             sum(r['total_tokens'] for r in rows) if all(r['total_tokens'] is not None for r in rows) else None}
             for kind in ('generation', 'embedding')
@@ -167,7 +167,7 @@ async def evaluate(dataset, *, live=False, semantic=False, transport=None):
                         row['answer'] = answer
                         row['support_decision_correct'] = int(answer['supported'] == case.answerable)
                         row['refusal_correct'] = int(not answer['supported']) if not case.answerable else None
-                        # This checks provenance only, NOT semantic entailment.
+                        # 这里只检查来源，不判断证据是否在语义上支持结论。
                         cited = [e for claim in answer['claims'] for e in claim['evidence']]
                         row['citation_provenance_valid'] = all(e in selected for e in cited) if cited else None
                     else:
@@ -176,7 +176,7 @@ async def evaluate(dataset, *, live=False, semantic=False, transport=None):
                     row['retrieved'] = selected
                     row['status'] = 'ok'
                 except Exception as exc:
-                    # Include failed answerable cases as zero retrieval scores, never omit failures from totals.
+                    # 可回答样例执行失败时按零检索分计入，不从总数中排除失败样例。
                     row.update(retrieval_metrics([], case))
                     row.update(status='error', error_type=type(exc).__name__)
                     if live:

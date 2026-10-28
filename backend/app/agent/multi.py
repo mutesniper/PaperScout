@@ -1,4 +1,4 @@
-"""Supervisor and two scoped specialists; tool execution and budgets stay shared."""
+"""协调角色与两个职责受限的专家角色，共享工具执行与预算。"""
 from typing import Annotated, Literal, TypedDict
 from pydantic import Field, TypeAdapter
 from langgraph.graph import StateGraph, START, END
@@ -45,7 +45,7 @@ def build_graph(model, run, context, event, execute, finish):
 
     def shared():
         data = context()
-        # Only brief, validated outputs are handed off, never full PDFs or model transcripts.
+        # 角色交接仅传递经过校验的简短结果，不传递完整 PDF 或模型对话记录。
         data['answer_results'] = [{'reading_id': a['reading_id'], 'question': a['question'],
             'supported': a['supported'], 'reason': a['reason'],
             'claims': [c['text'][:400] for c in a['claims']]} for a in run['answers']]

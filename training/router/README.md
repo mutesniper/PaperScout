@@ -4,7 +4,7 @@
 
 训练与评测仍独立于正式后端；后端不导入本目录。另提供`serve.py`将最终适配器加载为本地HTTP服务，单Agent可选择该实验路由，启动与限制见[使用说明](../../docs/guides/LOCAL_ROUTER.md)。
 
-原始4B模型验证29/36；第一组最佳27/36，第二组30/36（168条训练数据），第三组31/36（228条训练数据）。第三组增加进度与约束样例，独立重载通过，但出现预算边界回归，仍未达接入标准。原测试候选未评分。见[第三组对比](../../docs/evaluation/router/PROGRESSION_RUN.md)、[第二组](../../docs/evaluation/router/BOUNDARY_REVIEW.md)、[第一组](../../docs/evaluation/router/FORMAL_RUN.md)、[基线结果](../../docs/evaluation/router/BASELINE_RESULTS.md)与[运行说明](../../docs/evaluation/router/BASELINE.md)。
+原始4B模型验证29/36；第一组最佳27/36，第二组30/36（168条训练数据），第三组31/36（228条训练数据）。第三组增加进度与约束样例，独立重载通过，但出现预算边界回归，仍未达接入标准。后续第四组已首次评分120条测试候选，原始/当前/候选分别101/120、105/120、105/120；候选因新增边界错误及模拟任务退化未采用，见[第四组报告](../../docs/evaluation/router/CONSERVATIVE_RUN.md)。见[第三组对比](../../docs/evaluation/router/PROGRESSION_RUN.md)、[第二组](../../docs/evaluation/router/BOUNDARY_REVIEW.md)、[第一组](../../docs/evaluation/router/FORMAL_RUN.md)、[基线结果](../../docs/evaluation/router/BASELINE_RESULTS.md)与[运行说明](../../docs/evaluation/router/BASELINE.md)。
 
 v2取消前缀/ID扩写，现有训练84条、验证36条、测试候选120条不同的目标—状态案例。旧候选全部转为训练侧，新评测按完整任务族隔离；仍为作者自审的合成数据，不是独立人工金标准。详见 [数据审核与基线记录](../../docs/evaluation/router/DATA_REVIEW.md)。
 
@@ -22,12 +22,13 @@ v2取消前缀/ID扩写，现有训练84条、验证36条、测试候选120条�
 - `boundary_data.py`、`data/boundary/`：36条判断边界成对补充，原132条标签不变，第二组共168条。
 - `progression_data.py`、`data/progression/`：第三组补充60条任务进度/约束样例，共228条；另冻结36条训练外诊断，原验证/测试候选不变。
 - `progression_eval.py`：选模后对原始模型、第二组最佳、第三组最佳运行同一冻结诊断集，不用其结果选择检查点。
+- `conservative_data.py` / `conservative_run.py` / `conservative_eval.py`：第四组旧数据回放与低学习率续训。选模后对照当前版，首次评分120条测试候选，逐题退化即拒绝替换；见[实验记录](../../docs/evaluation/router/CONSERVATIVE_RUN.md)。
 - `qlora_smoke.py`：assistant-only监督检查、最多20次参数更新、保存与独立进程重载核验；不用于正式效果验收。
 - `formal_train.py`、`compare_formal.py`：固定3轮正式训练、同验证集选模、独立重载及原始模型对比，不开放测试评分或自动部署。
 - `task_suite.py`、`layered_eval.py`：24个受控多步任务的分层评测，真实本地路由+模拟工具；首次14/20→17/20，第三组回归19/20，尚非真实论文工作流验收。见[分层评测](../../docs/evaluation/router/LAYERED_EVAL.md)及[第三组报告](../../docs/evaluation/router/PROGRESSION_RUN.md)。
 
 六类是 `search`、`download_pdf`、`answer`、`compare`、`finish`、`clarify`。
-`clarify` 目前只用于离线规格，现有应用还没有对应控制分支。`finish` 包含成功完成和明确受阻；运行时不能把两者都报告为成功。
+`clarify` 在本地路由模式中对应暂停并等待用户补充，随后可恢复任务。`finish` 包含成功完成和明确受阻；运行时不能把两者都报告为成功。
 
 ## 如何检查
 

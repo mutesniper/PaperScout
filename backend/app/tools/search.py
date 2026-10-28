@@ -1,4 +1,4 @@
-"""Agent search policy; manual search remains in the HTTP service."""
+"""智能体检索策略；手动检索仍由 HTTP 服务处理。"""
 import re
 from app.schemas import SearchRequest
 from app.search.providers import deduplicate
@@ -8,12 +8,12 @@ ARXIV_CANDIDATE_TARGET = 5
 
 
 async def search_arxiv_first(app, plan, event):
-    # One focused query per action; the agent can revise it on its second search.
+    # 每次动作使用一个聚焦的查询，智能体可在第二次搜索时调整。
     focused = plan.model_copy(update={'queries': plan.queries[:1]})
     event('search', 'running', '优先搜索 arXiv，使用一组核心检索词。')
     primary = await app.state.collect_search(SearchRequest(plan=focused, sources=['arxiv'], limit=100))
-    # Full titles may include unindexed function words. Retry only a successful
-    # empty response, not rate limits/network errors, with a bounded shorter query.
+    # 完整标题可能包含未被索引的虚词。仅当请求成功但结果为空时，
+    # 使用长度受限的短查询重试；限流或网络错误不走此重试。
     terms = re.findall(r'[\w-]+', focused.queries[0], re.UNICODE)
     core = [term for term in terms if term.lower() not in {'a', 'an', 'the', 'at', 'of', 'in', 'on', 'for', 'to', 'and'}]
     if (not primary.papers and primary.sources and all(s.status == 'ok' for s in primary.sources)

@@ -4,13 +4,13 @@ type Summary = { abstract: string; scope: string; model: string; created_at: str
 type Answer = { question: string; supported: boolean; reason: string; created_at: string; claims: { text: string; evidence: Evidence[] }[] }
 type Comparison = { created_at: string; papers: Paper[]; dimensions: string[]; cells: { reading_id: string; dimension: string; supported: boolean; text: string; evidence: Evidence[] }[] }
 const labels: Record<string, string> = { goal: '研究目标', method: '方法', experiments: '实验设置', results: '实验结果', limitations: '局限' }
-// Treat all source/model text as plain text, not executable HTML or Markdown.
+// 将来源和模型文本视为纯文本，不作为可执行的 HTML 或 Markdown。
 const escape = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/([\\`*_{}\[\]()#+.!|~-])/g, '\\$1')
 const cell = (value: string) => escape(value).replace(/\r?\n/g, '<br>')
 const quote = (value: string) => escape(value).split(/\r?\n/).map(line => '> ' + line).join('\n')
 function paperInfo(paper: Paper) {
   let source = ''
-  try { const url = new URL(paper.source_url || ''); if (['https:', 'http:'].includes(url.protocol)) source = `\n来源：<${url.href.replace(/>/g, '%3E')}>\n` } catch { /* uploaded PDF may have no URL */ }
+  try { const url = new URL(paper.source_url || ''); if (['https:', 'http:'].includes(url.protocol)) source = `\n来源：<${url.href.replace(/>/g, '%3E')}>\n` } catch { /* 上传的 PDF 可能没有来源 URL */ }
   return `论文：${escape(paper.title)}\n\n记录 ID：${escape(paper.id)}\n${source}`
 }
 function evidence(items: Evidence[]) {

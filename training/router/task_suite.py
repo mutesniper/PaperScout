@@ -1,7 +1,7 @@
-"""Frozen synthetic closed-loop fixtures, separate from route training corpora.
+"""冻结的合成闭环测试样例，与路由训练语料分开。
 
-Bindings are a shared ideal parameter resolver, NOT model-generated arguments.
-Tool receipts are simulated artifacts, NOT generated academic answers.
+参数由共享的理想参数解析器绑定，并非模型生成。
+工具返回是模拟产物，不是生成的学术回答。
 """
 from dataclasses import dataclass, field
 from .contract import State, Candidate, PDF, Outcome, allowed_routes
@@ -113,7 +113,7 @@ class World:
         return route if getattr(s.remaining,route)>0 else 'finish'
 
     def execute(self,route):
-        """Actual transition is independent of expected(); wrong routes aren't auto-fixed."""
+        """实际状态转移独立于 expected()，不自动纠正错误路由。"""
         s,t=self.state,self.task
         event={'route':route,'arguments':{},'status':'success','progress':False,
                'simulated':True,'parameter_source':'shared ideal fixture binding'}

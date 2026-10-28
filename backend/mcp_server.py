@@ -1,4 +1,4 @@
-"""Local stdio MCP adapter. The running HTTP backend owns data and model calls."""
+"""本地 stdio MCP 适配器，数据与模型调用由运行中的 HTTP 后端管理。"""
 import argparse
 import logging
 import time
@@ -26,7 +26,7 @@ def local_url(value: str) -> str:
             or parsed.username or parsed.password or parsed.path not in ('', '/')
             or parsed.query or parsed.fragment):
         raise ValueError('Backend must be a local HTTP origin, e.g. http://127.0.0.1:8000')
-    # Validate malformed ports before starting the protocol loop.
+    # 启动协议循环前校验端口格式。
     _ = parsed.port
     return value.rstrip('/')
 
@@ -69,7 +69,7 @@ def create_server(base_url='http://127.0.0.1:8000', *, transport=None):
             outcome = 'invalid_response'
             raise ToolError('后端响应不是有效 JSON，请确认连接的是 PaperScout。') from None
         finally:
-            # Never log arguments, paper text, questions or response bodies.
+            # 不记录参数、论文文本、问题或响应正文。
             logger.info('tool=%s outcome=%s elapsed=%.2f', tool, outcome, time.monotonic() - started)
 
     def annotations(read=False, external=False):

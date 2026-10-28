@@ -1,4 +1,4 @@
-"""Authored task-state datasets, without neutral-prefix or ID augmentation."""
+"""编写任务状态数据集，不使用无关前缀或 ID 替换进行扩增。"""
 import hashlib
 import json
 import random
@@ -30,7 +30,7 @@ def digest(path):
 
 def parents(split):
     if split == 'train':
-        # Previously exposed specs and ALL v1 holdouts are now development data.
+        # 此前已查看的规格样例与全部 v1 留出集均归为开发数据。
         result = [e.model_copy(update={'split':'train'}) for e in cases()]
         aliases = {
             'v_unavailable_named':'one_missing', 'v_no_substitution':'selected_target',
@@ -67,7 +67,7 @@ def read_examples(path):
 
 
 def canonical_input(example):
-    """Catch our neutral-prefix/ID variants even if someone changes group names."""
+    """即使组名被修改，也能识别无关前缀或 ID 替换产生的变体。"""
     state = example.state.model_dump()
     for prefix in PREFIXES[1:]:
         if state['goal'].startswith(prefix):
@@ -150,7 +150,7 @@ def build(root=ROOT):
     root.mkdir(parents=True,exist_ok=True)
     for split, rows in datasets.items():
         write_jsonl(root/f'{split}.jsonl', [e.model_dump() for e in rows])
-    # Training export excludes annotation, scenario identifiers, labels in user input.
+    # 导出的训练输入不包含标注、场景标识或标签。
     write_jsonl(root/'train.messages.jsonl', [
         {'messages':model_messages(e.state) + [{'role':'assistant','content':e.expected.model_dump_json()}]}
         for e in datasets['train']])

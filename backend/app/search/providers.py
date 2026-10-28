@@ -20,7 +20,7 @@ def arxiv_key(value):
 
 
 def with_preprint_link(paper):
-    """Recover missing PDF metadata from a validated arXiv identifier, not a title guess."""
+    """根据已校验的 arXiv 标识补全 PDF 元数据，不通过标题猜测。"""
     if paper.fulltext_url:
         return paper
     identifier = paper.arxiv_id
@@ -113,7 +113,7 @@ def deduplicate(papers):
         found.doi = found.doi or paper.doi
         found.arxiv_id = found.arxiv_id or paper.arxiv_id
         found.year = found.year or paper.year
-        # Keep the first source's date (arXiv is first submission, not revision).
+        # 保留首个来源的日期；arXiv 使用首次提交日期，而非修订日期。
         found.publication_date = found.publication_date or paper.publication_date
         if found.citation_count is None and paper.citation_count is not None:
             found.citation_count, found.citation_source = paper.citation_count, paper.citation_source
@@ -133,9 +133,9 @@ class Sources:
         self.last = {s: 0.0 for s in self.locks}
 
     async def fetch(self, source, query, plan: Plan, limit):
-        # Candidate policy: request relevance where supported; otherwise use the
-        # provider's default order. Never replace it with the user's local sort.
-        # A default-order list can participate in RRF, but is not a semantic score.
+        # 候选策略：来源支持时按相关性查询，否则采用
+        # 来源的默认顺序，不替换为用户选择的本地排序方式。
+        # 默认排序列表可以参与 RRF 融合，但不代表语义得分。
         if source == 'arxiv':
             terms = re.findall(r'[\w-]+', query, re.UNICODE)
             if not terms:
@@ -147,8 +147,8 @@ class Sources:
             params = dict(search_query=expression, max_results=limit, sortBy='relevance')
             headers = {}
         else:
-            # /paper/search is the relevance-search endpoint; no sort parameter
-            # is needed. Do not switch to the bulk endpoint's default ID order.
+            # /paper/search 本身按相关性搜索，无需排序参数；
+            # 不要改用批量接口默认的 ID 顺序。
             url = 'https://api.semanticscholar.org/graph/v1/paper/search'
             params = dict(query=query, limit=limit, fields='title,authors,year,publicationDate,citationCount,abstract,url,externalIds,openAccessPdf')
             if plan.year_from or plan.year_to:

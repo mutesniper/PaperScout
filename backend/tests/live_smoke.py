@@ -1,4 +1,4 @@
-"""Opt-in live source check, not part of the deterministic pytest suite."""
+"""手动启用的真实来源检查，不属于确定性的 pytest 测试集。"""
 import json
 import tempfile
 from pathlib import Path

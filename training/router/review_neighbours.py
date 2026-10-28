@@ -1,8 +1,8 @@
-"""Recorded author dispositions for the v2 lexical audit; not an automatic judge.
+"""记录 v2 字面相似度审核的处理意见，不作为自动裁判。
 
-The reasoning below was written after reviewing the 28 reported input pairs.
-Rebuilding binds each disposition to both full states; tests detect stale or
-new unreviewed pairs. A change to these reasons requires a new author review.
+以下理由基于对报告中 28 对输入的审核。
+重建时将处理意见绑定到双方完整状态；测试检查过期或新增未审核样例对。
+修改这些理由需要重新审核。
 """
 import hashlib
 import json

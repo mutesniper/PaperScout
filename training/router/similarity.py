@@ -1,7 +1,7 @@
-"""Read-only cross-split near-neighbour audit, never a model evaluation.
+"""只读的跨数据划分近邻审核，不是模型评测。
 
-Character-bigram overlap after name/prefix normalization is a review aid, not
-proof of semantic independence. Report input text only, never model predictions.
+名称和前缀归一化后的字符二元组重合度仅辅助审核，不能证明语义独立。
+仅报告输入文本，不报告模型预测。
 """
 import argparse
 import json

@@ -53,8 +53,8 @@ class CloudModel:
                     if boundary > 0:
                         end = boundary
                 text, remaining = remaining[:end].strip(), remaining[end:].strip()
-                # Keep even tiny fragments in the supplied material; they cannot
-                # serve as standalone evidence because the schema requires 10 chars.
+                # 提供给模型的材料保留短片段；这些片段不能
+                # 单独用作证据，因为结构要求证据至少包含 10 个字符。
                 identifier = f'e{len(catalog) + 1}'
                 catalog[identifier] = {'page': fragment['page'], 'quote': text}
         return catalog
@@ -128,7 +128,7 @@ class CloudModel:
         return self._resolve_evidence(result, catalog)
 
     def _summary_options(self):
-        # Provider-specific switches must not leak into arbitrary compatible APIs.
+        # 服务商专用开关不能传给其他兼容接口。
         host = (urlsplit(self.base_url).hostname or '').lower()
         name = self.name.lower()
         if (host == 'dashscope.aliyuncs.com' or host.endswith('.maas.aliyuncs.com')
@@ -183,8 +183,8 @@ class CloudModel:
         payload = response.json()
         usage = payload.get('usage') or {}
         details = usage.get('completion_tokens_details') or {}
-        # Reasoning is a component of output, not an additional total. Log only
-        # numeric accounting metadata; never credentials, source text or reasoning.
+        # 推理用量属于输出用量，不应重复累加。日志仅记录
+        # 数值型用量信息，不记录凭据、原文或推理内容。
         numeric = lambda value: value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
         logging.getLogger('paperscout').info(
             'summary_usage input=%s output=%s reasoning_subset=%s total=%s',

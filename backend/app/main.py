@@ -87,7 +87,7 @@ def create_app(db_path=None):
                 else:
                     async with asyncio.timeout(28):
                         batch = await app.state.sources.fetch(source, query, body.plan, CANDIDATE_LIMIT)
-                    # Enforce the cap even if a provider ignores its limit parameter.
+                    # 即使来源忽略数量参数，也强制执行上限。
                     batch = batch[:CANDIDATE_LIMIT]
                     app.state.store.cache(key, [p.model_dump(mode='json') for p in batch])
                 batch = [with_preprint_link(p) for p in batch]
@@ -102,9 +102,9 @@ def create_app(db_path=None):
                 logger.warning('source=%s error_type=%s status=%s', source, type(exc).__name__, code)
                 return [], SourceResult(source=source, status='error', count=0, message=reason)
         async def one(source):
-            # Sequential queries respect provider limits; different sources run concurrently.
+            # 同一来源的查询串行执行以遵守限流，不同来源并发请求。
             results = [await one_query(source, query) for query in body.plan.queries]
-            # Round-robin ensures later query lines get a place in the candidate pool.
+            # 轮流选取各查询结果，确保后面的检索词也能进入候选池。
             interleaved = [paper for row in zip_longest(*(rows for rows, _ in results))
                            for paper in row if paper is not None]
             papers = source_candidates(deduplicate(interleaved)[:CANDIDATE_LIMIT], source)
