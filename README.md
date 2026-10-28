@@ -10,9 +10,14 @@
 ![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 
-[应用 v1.0.0](https://github.com/mutesniper/PaperScout/releases/tag/paperscout-v1.0.0) · [默认适配器](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.0.0) · [实验候选](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.1.0-experimental.1) · [快速开始](#快速开始) · [系统架构](#系统架构) · [评测与进展](#评测与进展) · [项目结构](#项目结构) · [文档中心](docs/README.md)
+[应用 v1.0.0](https://github.com/mutesniper/PaperScout/releases/tag/paperscout-v1.0.0) · [路由适配器 v1.0.0](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.0.0) · [路由候选 v1.1.0](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.1.0-experimental.1) · [快速开始](#快速开始) · [系统架构](#系统架构) · [评测与进展](#评测与进展) · [项目结构](#项目结构) · [文档中心](docs/README.md)
 
 </div>
+
+<p align="center">
+  <img src="docs/assets/paperscout-demo.gif" alt="PaperScout 研究任务演示：选择路由、搜索论文、获取 PDF 并查看原文证据" width="1000">
+</p>
+<p align="center"><sub>真实任务记录回放，等待过程已压缩 · <a href="docs/assets/paperscout-demo.png">静态预览</a></sub></p>
 
 ## 项目简介
 
@@ -20,7 +25,7 @@ PaperScout 是面向本地单用户的论文研究工作台。输入自然语言
 
 支持手动探索、LangGraph 单 Agent 工具循环和多角色协作。单 Agent 默认使用云端模型，也可切换为**本地微调小模型路由（实验）**，工具参数与研究内容仍由云端生成。
 
-应用版本 `paperscout-v1.0.0` 固定本次交付源码，下载与验证范围见[版本说明](docs/releases/v1.0.0.md)。模型适配器使用独立的 `router-*` 版本。
+应用版本 `paperscout-v1.0.0` 固定本次交付源码，下载与验证范围见[版本说明](docs/releases/v1.0.0.md)。应用与模型分别编号：`paperscout-*` 对应整个应用，`router-*` 对应工具路由适配器；`router-v1.1.0-experimental.1` 是模型实验候选，应用最新正式版为 `paperscout-v1.0.0`。
 
 ## 核心能力
 
