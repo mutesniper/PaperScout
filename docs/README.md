@@ -6,7 +6,7 @@
 
 ## 使用项目
 
-- [应用 v1.0.0](releases/v1.0.0.md)：固定版本、启动入口、交付内容与验证范围。
+- [应用 v1.1.0](releases/v1.1.0.md)：可选模型裁判、真实评测与固定版本启动；[v1.0.0](releases/v1.0.0.md) 保留历史交付说明。
 - [启动与演示](guides/DEMO.md)：Docker、本地数据差异、演示流程。
 - [配置说明](guides/CONFIGURATION.md)：生成模型、来源密钥与 Embedding。
 - [功能说明](guides/USAGE.md)：检索排序、全文摘要、引用、问答、对比与 Agent。

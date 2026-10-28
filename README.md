@@ -42,7 +42,7 @@
 
 **版本下载**
 
-- [应用 v1.0.0](https://github.com/mutesniper/PaperScout/releases/tag/paperscout-v1.0.0)
+- [应用 v1.1.0](https://github.com/mutesniper/PaperScout/releases/tag/paperscout-v1.1.0)
 - [路由适配器 v1.0.0](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.0.0)
 - [路由候选 v1.1.0](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.1.0-experimental.1)
 
@@ -61,7 +61,7 @@ PaperScout 是面向本地单用户的论文研究工作台。输入自然语言
 
 支持手动探索、LangGraph 单 Agent 工具循环和多角色协作。单 Agent 默认使用云端模型，也可切换为**本地微调小模型路由（实验）**，工具参数与研究内容仍由云端生成。
 
-应用版本 `paperscout-v1.0.0` 固定本次交付源码，下载与验证范围见[版本说明](docs/releases/v1.0.0.md)。应用与模型分别编号：`paperscout-*` 对应整个应用，`router-*` 对应工具路由适配器；`router-v1.1.0-experimental.1` 是模型实验候选，应用最新正式版为 `paperscout-v1.0.0`。
+应用版本 `paperscout-v1.1.0` 新增可选 LLM-as-a-Judge 评测，下载与验证范围见[版本说明](docs/releases/v1.1.0.md)。应用与模型分别编号：`paperscout-*` 对应整个应用，`router-*` 对应工具路由适配器；`router-v1.1.0-experimental.1` 是模型实验候选，应用最新正式版为 `paperscout-v1.1.0`。
 
 <a id="核心能力"></a>
 

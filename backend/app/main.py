@@ -38,7 +38,7 @@ def create_app(db_path=None):
         app.state.embedding_lock = asyncio.Lock()
         app.state.agent_tasks = {}
         app.state.store.interrupt_agent_runs()
-        async with httpx.AsyncClient(timeout=12, headers={'User-Agent': 'PaperScout/1.0.0 (personal research assistant)'}) as client:
+        async with httpx.AsyncClient(timeout=12, headers={'User-Agent': 'PaperScout/1.1.0 (personal research assistant)'}) as client:
             app.state.sources = Sources(client, os.getenv('SEMANTIC_SCHOLAR_API_KEY', ''))
             app.state.model = CloudModel(client, os.getenv('LLM_BASE_URL', ''), os.getenv('LLM_API_KEY', ''), os.getenv('LLM_MODEL', ''))
             app.state.local_router = LocalRouter(os.getenv('LOCAL_ROUTER_URL', 'http://127.0.0.1:8010'))
@@ -51,7 +51,7 @@ def create_app(db_path=None):
                     task.cancel()
                 await asyncio.gather(*tasks, return_exceptions=True)
 
-    app = FastAPI(title='PaperScout', version='1.0.0', lifespan=lifespan)
+    app = FastAPI(title='PaperScout', version='1.1.0', lifespan=lifespan)
     app.include_router(reading_router)
     app.include_router(qa_router)
     app.include_router(comparison_router)
