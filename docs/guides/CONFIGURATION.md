@@ -37,3 +37,9 @@ EMBEDDING_MODEL=该服务支持的多语言向量模型名称
 接口：`GET /api/readings/{id}/questions` 获取当前论文记录；`POST /api/readings/{id}/questions` 接收 `{"question":"这篇论文的局限是什么？"}`。问题最长 1500 字符，单次问答含首次索引的服务端总超时为 240 秒。索引失败时完整批次未全部完成则不写入缓存。
 
 修改配置后的本地与 Docker 重启方式见 [启动与演示](DEMO.md)。
+
+## 可选评测裁判
+
+`JUDGE_BASE_URL`、`JUDGE_API_KEY`、`JUDGE_MODEL` 仅由独立评测脚本在 `--live --judge` 模式下使用，三项需全部配置，不自动复用 `LLM_*`。地址格式与生成模型一致；可以显式使用相同服务和密钥，选择不同模型有助于降低自评偏好。
+
+配置完成不会改变网页问答或 Agent 行为。只有执行裁判评测才会额外发送问题、参考答案、检索片段和生成回答，并产生裁判调用费用。脚本每次启动读取配置，无需启动或重启网页后端。[运行步骤与评分标准](../evaluation/EVALUATION.md#可选-llm-as-a-judge)。

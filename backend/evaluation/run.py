@@ -23,6 +23,7 @@ from app.rag.qa import Question, ask
 from app.papers.schemas import Reading
 from app.rag.retrieval import CloudEmbedding, chunks_for, retrieve
 from app.storage import Store
+from evaluation.judge import Judge, PROMPT_SHA256, PROMPT_VERSION
 
 
 class Gold(BaseModel):
@@ -134,7 +135,11 @@ def average(rows, key):
     return sum(values) / len(values) if values else None
 
 
-async def evaluate(dataset, *, live=False, semantic=False, transport=None):
+async def evaluate(dataset, *, live=False, semantic=False, judge=False, transport=None):
+    if judge and not live:
+        raise ValueError('--judge 必须与 --live 一起使用')
+    # 在回答或嵌入调用前检查配置，避免产生费用后才发现裁判未配置。
+    evaluator = Judge() if judge else None
     meter = Meter()
     rows = []
     with tempfile.TemporaryDirectory(prefix='paperscout-eval-') as directory:
@@ -185,11 +190,39 @@ async def evaluate(dataset, *, live=False, semantic=False, transport=None):
                 row['seconds'] = round(time.perf_counter() - start, 4)
                 row['calls'] = meter.calls[call_start:]
                 rows.append(row)
+    judge_report = {'enabled': judge}
+    if evaluator:
+        judge_meter = Meter()
+        async with httpx.AsyncClient(transport=transport, event_hooks={
+                'request': [judge_meter.request], 'response': [judge_meter.response]}) as client:
+            for row in rows:
+                if row['status'] != 'ok':
+                    row['judge'] = {'status': 'skipped', 'reason': '问答执行失败，无有效回答可评分'}
+                    continue
+                start, call_start = time.perf_counter(), len(judge_meter.calls)
+                try:
+                    row['judge'] = {'status': 'ok', **await evaluator.grade(client, row)}
+                except Exception as exc:
+                    # 不保存异常正文，避免上游错误回显凭据或请求内容；不自动重试。
+                    row['judge'] = {'status': 'error', 'error_type': type(exc).__name__}
+                row['judge']['seconds'] = round(time.perf_counter() - start, 4)
+                row['judge']['calls'] = judge_meter.calls[call_start:]
+        judged = [r['judge'] for r in rows]
+        successful = [j for j in judged if j['status'] == 'ok']
+        judge_report.update(model=evaluator.name, prompt_version=PROMPT_VERSION,
+            prompt_sha256=PROMPT_SHA256, usage=judge_meter.totals()['generation'],
+            summary={'cases': len(rows), 'scored': len(successful),
+                'errors': sum(j['status'] == 'error' for j in judged),
+                'skipped': sum(j['status'] == 'skipped' for j in judged),
+                'scores': {key: {
+                    'mean': average([j[key] for j in successful if j[key] is not None], 'score'),
+                    'count': sum(j[key] is not None for j in successful)}
+                    for key in ('correctness', 'completeness', 'grounding')}})
     return {'dataset_version': dataset.version, 'description': dataset.description,
         'mode': 'live' if live else 'retrieval', 'retrieval': 'semantic' if semantic else 'keyword',
         'model': model.name or None, 'embedding_model': embedding.name or None,
         'cache_policy': 'isolated cold cache per run; reused between questions of the same document',
-        'created_at': datetime.now(timezone.utc).isoformat(), 'usage': meter.totals(),
+        'created_at': datetime.now(timezone.utc).isoformat(), 'usage': meter.totals(), 'judge': judge_report,
         'summary': {'cases': len(rows), 'errors': sum(r['status'] == 'error' for r in rows),
             **{key: average(rows, key) for key in ('hit_at_6', 'evidence_recall_at_6', 'reciprocal_rank',
                 'support_decision_correct', 'refusal_correct', 'seconds')}}, 'cases': rows}
@@ -202,10 +235,15 @@ def markdown(report):
         '```json', json.dumps(report['summary'], ensure_ascii=False, indent=2), '```', '',
         '用量（null 表示服务未返回，generation 与 embedding 分开统计）：', '',
         '```json', json.dumps(report['usage'], indent=2), '```']
+    if report.get('judge', {}).get('enabled'):
+        lines += ['', '## 可选 LLM 裁判', '',
+            '以下为模型评分（0–2），不是人工真值。均分仅包含有效评分，请同时查看失败数、跳过数和各项计数。',
+            '拒答的证据支持度不适用，记 null；裁判调用用量单独列出。人工审核仍待完成。', '',
+            '```json', json.dumps(report['judge'], ensure_ascii=False, indent=2), '```']
     for row in report['cases']:
         lines += ['', f"## {row['id']}", '', row['question'], '',
             f"参考答案：{row['reference_answer']}", '', f"状态：{row['status']}；耗时：{row['seconds']} 秒", '',
-            '```json', json.dumps({k: row.get(k) for k in ('answer', 'gold_evidence', 'retrieved', 'calls')},
+            '```json', json.dumps({k: row.get(k) for k in ('answer', 'gold_evidence', 'retrieved', 'calls', 'judge')},
                                   ensure_ascii=False, indent=2), '```', '',
             '- [ ] 回答内容正确（对照参考答案，允许合理改写）',
             '- [ ] 每条结论受到引用原文支持', '- [ ] 无证据的问题没有编造答案']
@@ -217,13 +255,16 @@ def main():
     parser.add_argument('--dataset', type=Path, default=Path(__file__).parent / 'fixtures.json')
     parser.add_argument('--live', action='store_true', help='发送检索片段到配置的大模型，可能产生费用')
     parser.add_argument('--semantic', action='store_true', help='调用配置的 Embedding 服务，可能产生费用')
+    parser.add_argument('--judge', action='store_true', help='与 --live 配合，每题额外调用一次独立配置的裁判模型')
     parser.add_argument('--output', type=Path, default=ROOT / 'outputs/evaluation')
     args = parser.parse_args()
+    if args.judge and not args.live:
+        parser.error('--judge 必须与 --live 一起使用')
     raw = args.dataset.read_bytes()
     dataset = Dataset.model_validate_json(raw)
     if args.live or args.semantic:
         load_dotenv(ROOT / '.env')
-    report = asyncio.run(evaluate(dataset, live=args.live, semantic=args.semantic))
+    report = asyncio.run(evaluate(dataset, live=args.live, semantic=args.semantic, judge=args.judge))
     report['dataset_sha256'] = hashlib.sha256(raw).hexdigest()
     revision = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, capture_output=True, text=True)
     report['git_commit'] = revision.stdout.strip() if revision.returncode == 0 else None
@@ -235,8 +276,10 @@ def main():
     path.with_suffix('.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     path.with_suffix('.md').write_text(markdown(report), encoding='utf-8')
     print(json.dumps(report['summary'], ensure_ascii=False, indent=2))
+    if args.judge:
+        print(json.dumps(report['judge']['summary'], ensure_ascii=False, indent=2))
     print(f'报告：{path}.json / .md')
-    return 1 if report['summary']['errors'] else 0
+    return 1 if report['summary']['errors'] or report['judge'].get('summary', {}).get('errors') else 0
 
 
 if __name__ == '__main__':

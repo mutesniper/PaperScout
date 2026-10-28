@@ -6,7 +6,7 @@
 
 **从研究想法出发，找到论文，读懂内容，追溯证据。**
 
-论文检索 · RAG 问答 · 单 / 多 Agent · MCP · QLoRA 工具路由
+论文检索 · RAG 问答 · 单 / 多 Agent · MCP · QLoRA 工具路由 · LLM-as-a-Judge 评测
 
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
@@ -17,6 +17,7 @@
 ![MCP](https://img.shields.io/badge/MCP-stdio-475569?style=flat-square)
 ![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![QLoRA](https://img.shields.io/badge/QLoRA-NF4-7C3AED?style=flat-square&logo=pytorch&logoColor=white)
+[![LLM-as-a-Judge](https://img.shields.io/badge/LLM--as--a--Judge-Evaluation-0F766E?style=flat-square)](#测试与评估)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
 </div>
@@ -106,6 +107,7 @@ flowchart LR
 | 🧠 Agent 与检索 | LangGraph、工具调用、关键词检索、Embedding、FAISS、RRF |
 | 📦 集成与部署 | MCP、Docker Compose、Nginx |
 | 🎯 离线训练实验 | PyTorch、Transformers、PEFT、bitsandbytes，SFT + QLoRA |
+| ⚖️ 质量评测 | 规则指标 + 可选 LLM-as-a-Judge，评估回答正确性、完整性与证据支持度；独立脚本运行，默认关闭 |
 
 <a id="快速开始"></a>
 
@@ -160,10 +162,22 @@ npm run dev
 | --- | --- | --- |
 | `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | 检索计划、摘要、问答、对比、Agent | 使用生成模型功能时配置 |
 | `EMBEDDING_BASE_URL` / `EMBEDDING_API_KEY` / `EMBEDDING_MODEL` | 语义检索 | 可选；全部留空使用关键词检索 |
+| `JUDGE_BASE_URL` / `JUDGE_API_KEY` / `JUDGE_MODEL` | 独立问答评测的模型裁判 | 可选；仅 `--live --judge` 启用 |
 | `SEMANTIC_SCHOLAR_API_KEY` | 来源认证 | 可选；公共接口可能限流 |
 | `LOCAL_ROUTER_URL` | 本地微调路由服务 | 可选；默认 `http://127.0.0.1:8010` |
 
 不配置生成模型仍可手动检索、上传 PDF 和查看已保存数据。Embedding 三项需全填或全留空，不自动复用生成模型配置。
+
+**模型分工 · 2026-10-28**：以下为本次实测配置，云端模型可通过环境变量替换，不是代码固定依赖。
+
+| 角色 | 模型 / 版本 | 职责 |
+| --- | --- | --- |
+| ☁️ 云端生成 | `deepseek-v4.1-flash` | 检索计划、摘要、问答、对比与云端 Agent 决策；本轮评测使用其问答能力 |
+| 🔎 向量检索 | `qwen3.7-text-embedding-flash` | 论文片段与问题向量化，配合 BM25 / RRF 检索证据 |
+| ⚖️ 评测裁判 | `qwen3.8-max-0902` | 对生成回答的正确性、完整性、证据支持度评分，仅用于可选评测 |
+| 🎯 本地微调路由 | `Qwen3-4B-Instruct-2507` + `router-v1.0.0` QLoRA 适配器 | 单 Agent 六类工具路由；不生成论文分析内容，不参与本轮问答裁判评测 |
+
+云端名称按所配置服务的模型标识记录；本地微调方法及当前 / 实验候选区别见[评测与进展](#评测与进展)。
 
 <a id="使用示例"></a>
 
@@ -214,6 +228,22 @@ TinyAgent: Function Calling at the Edge
 <a id="评测与进展"></a>
 
 ## 📊 评测与进展
+
+### ⚖️ LLM 裁判评测 · 2026-10-28
+
+使用三篇真实论文的 12 道固定题运行语义检索与云端问答：运行错误 **0/12**，标注证据 Hit@6 **9/9**，可回答性判断 **12/12**，无依据拒答 **3/3**。回答生成消耗 19,327 Token，Embedding 消耗 70,964 Token，后者包含全文首次建索引。
+
+由 `qwen3.8-max-0902` 对 `deepseek-v4.1-flash` 的回答进行独立调用评分，**12/12 题取得有效评分，裁判运行错误为 0**：
+
+| 裁判维度 | 均分（满分 2） | 有效样本 |
+| --- | --- | --- |
+| ✅ 正确性 | **2.00** | 12 道题 |
+| 🧩 完整性 | **2.00** | 12 道题 |
+| 📎 证据支持度 | **2.00** | 9 道有引用回答；3 道拒答不计此项 |
+
+成功评分消耗 43,360 Token，平均每题 16.93 秒；复用已有回答，未重复生成和建索引。此前权限错误与用量单独保留。以上是小规模固定开发集上的模型评分，**不等于人工正确率或完整 Agent 成功率**；尚未经独立人工盲审。[逐题结果、模型配置与用量](docs/evaluation/LLM_JUDGE_RESULTS.md)。
+
+另用错数字、漏答子问题和不支持的引用做了 3 个预设错误对照，裁判均对相应维度扣分；额外消耗 13,369 Token，不计入上表成绩。对照也暴露出必要要点判断的局部不一致，评分仍需人工复核。
 
 <a id="工具路由-qlora--2026-10-28"></a>
 
@@ -335,6 +365,9 @@ cd ..
 
 # 语义检索 + 真实回答：还需要完整 EMBEDDING_* 配置
 .\.venv\Scripts\python backend/evaluation/run.py --live --semantic
+
+# 可选 LLM-as-a-Judge：另外配置 JUDGE_BASE_URL / JUDGE_API_KEY / JUDGE_MODEL
+.\.venv\Scripts\python backend/evaluation/run.py --live --judge
 ```
 
 默认使用仓库内 **2 份虚构材料、9 道固定题**，用于检验链路与回归。`--live` 会调用回答模型，`--semantic` 会调用 Embedding 服务，可能产生费用；只想评估语义检索时可单独使用 `--semantic`。这些评测都不需要启动网页。
@@ -346,9 +379,12 @@ cd ..
 | 检索效果 | `hit_at_6`、`evidence_recall_at_6`、`reciprocal_rank` |
 | 回答与拒答 | 可回答性判断、拒答情况、逐条回答是否得到引用支持 |
 | 引用来源 | `citation_provenance_valid`；来源可核验仍需人工判断语义是否支持结论 |
+| 可选模型裁判 | `--judge` 对正确性、完整性、证据支持度分别给出 0–2 分及理由；裁判失败数、有效评分数与用量单独记录 |
 | 成本与稳定性 | 失败题、耗时、生成与 Embedding 的 Token 用量；未返回用量记为未知 |
 
 更换模型或提示词后，使用相同数据集与参数重跑，保留逐题结果进行对照。退出码为 0 只表示运行完成，不代表回答全部正确。
+
+LLM-as-a-Judge 默认关闭，仅用于独立问答评测，日常功能不额外调用裁判。启用后会把问题、参考答案、检索证据和生成回答发送给配置的裁判服务，每道成功执行的问答最多额外调用一次并产生费用；可与 `--semantic` 组合。裁判均分不等于人工正确率，也不代表完整 Agent 任务成功率。已通过模拟调用测试，真实调用进度见[本轮记录](docs/evaluation/LLM_JUDGE_RESULTS.md)；评分规则与配置见[评测指南](docs/evaluation/EVALUATION.md#可选-llm-as-a-judge)。
 
 <details>
 <summary>使用自己的论文与题目评估</summary>
@@ -446,6 +482,8 @@ cd ..
 | 方向 | 后续事项 |
 | --- | --- |
 | 🤖 任务执行 | 多轮上下文与中断恢复；在相同任务下验证角色分工的收益 |
+| 🧠 偏好记忆 | 保存用户确认的研究方向、论文来源与输出偏好，支持查看、修改和删除；按需注入新任务上下文，以当前明确指令为准 |
+| 🔁 经验检索 | 从已完成和失败任务中提取经核验的执行经验，关联原任务及适用条件；结合关键词与向量检索，在新任务决策时提供相关参考，并验证对成功率、耗时与调用量的影响 |
 | 🧪 质量评估 | 扩展真实论文与复杂任务样本，增加独立人工复核，分别衡量路由、工具与答案质量 |
 | 🔎 检索适配 | 本地保存各来源的规则与偏好，检索前生成适合对应网站的查询 |
 | ⚡ 成本控制 | 完善实际 Token 统计、任务预算和结果缓存，以相同论文检查质量与成本变化 |

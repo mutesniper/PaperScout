@@ -8,6 +8,7 @@
 | --- | --- |
 | [评测方法](EVALUATION.md) | 固定样本、真实服务的运行入口与计分方式 |
 | [论文问答结果](EVALUATION_RESULTS.md) | 实际论文、证据核对与模型用量 |
+| [LLM 裁判评测记录](LLM_JUDGE_RESULTS.md) | 真实问答、裁判调用状态、模型分工与独立用量 |
 | [Agent 真实验收与对照](AGENT_EVALUATION_RESULTS.md) | 云端单 / 多 Agent 对照、本地微调路由验收、缓存条件与失败记录 |
 
 ## 离线路由实验
