@@ -19,13 +19,33 @@
 ![QLoRA](https://img.shields.io/badge/QLoRA-NF4-7C3AED?style=flat-square&logo=pytorch&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-[应用 v1.0.0](https://github.com/mutesniper/PaperScout/releases/tag/paperscout-v1.0.0) · [路由适配器 v1.0.0](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.0.0) · [路由候选 v1.1.0](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.1.0-experimental.1)
-
-[✨ 核心能力](#核心能力) · [🚀 快速开始](#快速开始) · [📚 使用示例](#使用示例) · [🧩 系统架构](#系统架构) · [📁 项目结构](#项目结构)
-
-[🧪 测试与评估](#测试与评估) · [📊 评测与进展](#评测与进展) · [💡 常见问题](#常见问题) · [🔗 延伸阅读](#延伸阅读) · [🗺️ 未来规划](#未来规划) · [📖 文档中心](docs/README.md)
-
 </div>
+
+<details>
+<summary><strong>📑 目录</strong></summary>
+
+- [📖 项目简介](#项目简介)
+- [✨ 核心能力](#核心能力)
+- [🧩 系统架构](#系统架构)
+- [🚀 快速开始](#快速开始)
+- [📚 使用示例](#使用示例)
+- [📊 评测与进展](#评测与进展)
+- [📁 项目结构](#项目结构)
+- [🧪 测试与评估](#测试与评估)
+- [🔗 延伸阅读](#延伸阅读)
+- [💡 常见问题](#常见问题)
+- [🗺️ 未来规划](#未来规划)
+- [📬 联系方式](#联系方式)
+- [📄 License](#license)
+- [📖 文档中心](docs/README.md)
+
+**版本下载**
+
+- [应用 v1.0.0](https://github.com/mutesniper/PaperScout/releases/tag/paperscout-v1.0.0)
+- [路由适配器 v1.0.0](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.0.0)
+- [路由候选 v1.1.0](https://github.com/mutesniper/PaperScout/releases/tag/router-v1.1.0-experimental.1)
+
+</details>
 
 <p align="center">
   <img src="docs/assets/paperscout-demo.gif" alt="PaperScout 研究任务演示：选择路由、搜索论文、获取 PDF 并查看原文证据" width="1000">
